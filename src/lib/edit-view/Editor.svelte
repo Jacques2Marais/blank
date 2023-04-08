@@ -1,0 +1,342 @@
+<script>
+    import { save } from "@tauri-apps/api/dialog";
+    import { invoke } from "@tauri-apps/api/tauri"
+    import { setEditorID } from "./edit";
+    import { typeFromPath } from "./filetypes";
+
+    // Internal variables
+    let numWords = 0;
+    let textarea = null;
+    let preElement = null;
+
+    // Exported variables
+    //export const language = "HTML"; // language of the code
+    export const theme = "Solarized (light)"; // syntax highlighting theme
+    export const id = 0; // id of the editor
+    //export let value = ""; // editor content/value
+
+    // Count the number of words in the inputted code
+    /*$: invoke("count_words", { value }).then((res) => {
+        numWords = res;
+    });*/
+
+    /* Tab functionality */
+    let tabs = [
+        {
+            name: "index.html",
+            content: "Hello world!",
+            language: "HTML",
+            syntaxHighlighted: "",
+            path: ""
+        }
+    ];
+    let currentTabID = 0;
+    let currentTab;
+    $: currentTab = tabs[currentTabID];
+
+    // Check if tab with given path is in list of tabs,
+    // and if it is return its id
+    function tabExists(path) {
+        if (path == "" || path == undefined) {
+            return -1;
+        }
+
+        for (let i = 0; i < tabs.length; i++) {
+            if (tabs[i].path == path) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    // Load tab given its id
+    function loadTab(tabID) {
+        currentTabID = tabID;
+
+        syntaxHighlight();
+    }
+
+    // Open a new tab in the current editor
+    function openNewTab(name = "Untitled") {
+        setEditorID(id);
+
+        tabs.push({
+            name,
+            content: "",
+            language: "Text",
+            syntaxHighlighted: "",
+            path: ""
+        });
+
+        currentTabID = tabs.length - 1;
+    }
+
+    // Open file in current tab
+    export function openInCurrentTab(file = "") {
+        setEditorID(id);
+
+        loadFile(file);
+    }
+
+    // Open file in new tab
+    export function openInNewTab(file = "") {
+        let tab = tabExists(file);
+        if (tab > -1) {
+            loadTab(tab);
+            return;
+        }
+
+        openNewTab(file);
+
+        if (file != "") {
+            openInCurrentTab(file);
+        }
+    }
+
+    /* Syntax highlighting */
+    let themeCSS = ""; // css for the syntax highlighting theme (classes with corresponding styles)
+
+    // Load syntax highlighting theme's css
+    invoke("load_syntax_highlight_theme_css", { theme }).then((res) => {
+        themeCSS = res;
+    });
+
+    // Escape HTML code
+    function escapeHTML(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    // Syntax highlight the code and sync the scroll values
+    // TODO: split syntax highlighting into chunks (e.g. lines or blocks) to prevent lag
+    function syntaxHighlight() {
+        if (tabs[currentTabID].language == "Text") {
+            tabs[currentTabID].syntaxHighlighted = escapeHTML(tabs[currentTabID].content);
+            setTimeout(scrollSync);
+            return;
+        }
+
+        invoke("syntax_highlight", {
+            code: tabs[currentTabID].content,
+            language: tabs[currentTabID].language,
+        }).then((res) => {
+            tabs[currentTabID].syntaxHighlighted = res;
+            setTimeout(scrollSync);
+        });
+    }
+
+    syntaxHighlight();
+
+
+    /* Other functionality */
+    // TODO: tab level should be based on the last line
+    let tabLevel = 0; // indicates auto-indent level
+
+    // Handle some key presses in textarea
+    function tabCheck(e) {
+        if (e.key == "Tab") {
+            // tab => insert tab instead of shifting focus to next textarea
+            e.preventDefault();
+
+            let start = textarea.selectionStart;
+            let end = textarea.selectionEnd;
+
+            // set textarea value to: text before caret + tab + text after caret
+            tabs[currentTabID].content = tabs[currentTabID].content.substring(0, start) + "\t" + tabs[currentTabID].content.substring(end);
+
+            // put caret at right position again
+            setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + 1});
+
+            // increase current tab level
+            tabLevel++;
+        } else if (e.key == "Enter") {
+            setTimeout(() => {
+                // TODO: fix auto-indentation
+                let indent = "";
+
+                for (let i = 0; i < tabLevel; i++) {
+                    indent += "\t";
+                }
+
+                let start = textarea.selectionStart;
+                let end = textarea.selectionEnd;
+                //tabs[currentTab].content = tabs[currentTab].content.substring(0, start) + indent + tabs[currentTab].content.substring(end);
+
+                setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + tabLevel});
+            });
+        } else if (e.key == "s") {
+            // ctrl + s => save file
+            if (e.ctrlKey) {
+                e.preventDefault();
+                saveFile();
+            }
+        }
+    }
+
+    // Sync the scroll values of the textarea and the pre element
+    function scrollSync() {
+        preElement.scrollTop = textarea.scrollTop;
+        preElement.scrollLeft = textarea.scrollLeft;
+    }
+
+    // Sync the scroll values when the textarea is scrolled
+    function textareaChange(e) {
+        scrollSync();
+
+        syntaxHighlight();
+    }
+
+    /* File functionality */
+
+    // Internal variables
+    //let currentFilePath = ""; // path to the file being edited in the current tab
+
+    // Save file in current tab
+    function saveFile() {
+        if (tabs[currentTabID].path.length == 0) {
+            // if no path is set, open a save dialog to save new file
+            save({
+                filters: [
+                    { name: "HTML", extensions: ["html"] },
+                    { name: "CSS", extensions: ["css"] },
+                    { name: "JavaScript", extensions: ["js"] },
+                    { name: "All Files", extensions: ["*"] }
+                ]
+            }).then((res) => {
+                if (res) {
+                    tabs[currentTabID].path = res;
+                    invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
+                }
+            });
+        } else {
+            // if path is set, save file to that path
+            invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
+        }
+    }
+
+    // Load file in current tab
+    function loadFile(path) {
+        invoke("load_file", { path }).then((res) => {
+            tabs[currentTabID].content = res;
+            tabs[currentTabID].path = path;
+            currentTab.name = path.split("/").pop();
+            currentTab.language = typeFromPath(path);
+
+            syntaxHighlight();
+        });
+    }
+</script>
+
+{ @html "<" + "style>" + themeCSS + "</style>" }
+
+<main>
+    <div class="tabs">
+        <div class="tab">
+            <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
+            <textarea spellcheck="false" bind:value={ tabs[currentTabID].content } on:keydown={ tabCheck } bind:this={ textarea } 
+                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditorID(id) } }></textarea>
+        </div>
+    </div>
+    <div class="details">
+        <span>
+            { numWords } { numWords == 1 ? "word": "words" }
+        </span>
+        <div class="tabsNav">
+            {#each tabs as tab, i}
+                <button class:active={ i == currentTabID } on:click={ () => { loadTab(i) } }>{ tab.name }</button>
+            {/each}
+            <button on:click={ () => { openNewTab() } }>+</button>
+        </div>
+    </div>
+</main>
+
+<style>
+    main {
+        height: 100%;
+        width: 100%;
+        position: relative;
+    }
+
+    div.details {
+        background: #ddd;
+        line-height: 2em;
+
+        padding: 0 1em;
+
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+
+    div.tabsNav {
+        float: right;
+    }
+
+    div.tabsNav button {
+        border: 0;
+        background: transparent;
+        padding: 0 0.5em;
+        margin: 0 0.5em;
+        cursor: pointer;
+    }
+
+    div.tabsNav button.active {
+        background: #ccc;
+    }
+
+    textarea, pre {
+        /* Both elements need the same text and space styling so they are directly on top of each other */
+        display: block;
+        
+        margin: 0;
+        padding: 10px;
+        border: 0;
+        width: calc(100%);
+        height: calc(100% - 2em);
+        box-sizing: border-box;
+
+        position: absolute;
+        top: 0;
+        left: 0;
+
+        overflow: auto;
+        white-space: pre-wrap;
+    }
+
+    textarea, pre, pre * {
+        /* Also add text styles to highlighing tokens */
+        font-size: 15px;
+        font-family: monospace;
+        line-height: 20px;
+        tab-size: 2;
+    }
+
+
+/* Move the textarea in front of the result */
+
+    textarea {
+        z-index: 1;
+
+        color: transparent;
+        background: transparent;
+        caret-color: black;
+        outline: none;
+
+        resize: none;
+    }
+
+    textarea::-webkit-scrollbar {
+        display: none;
+    }
+
+    pre {
+        z-index: 0;
+    }
+</style>
+
