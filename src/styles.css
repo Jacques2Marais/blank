@@ -1,9 +1,3 @@
 body {
     margin: 0;
 }
-
-#filetree ul {
-    list-style: none;
-    margin: 0;
-    padding: 0 0 0 1em;
-}

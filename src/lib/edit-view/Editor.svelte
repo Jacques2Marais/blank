@@ -1,13 +1,14 @@
 <script>
     import { save } from "@tauri-apps/api/dialog";
     import { invoke } from "@tauri-apps/api/tauri"
-    import { setEditorID } from "./edit";
+    import { setEditor } from "./edit";
     import { typeFromPath } from "./filetypes";
 
     // Internal variables
     let numWords = 0;
     let textarea = null;
     let preElement = null;
+    let thisEditor = this;
 
     // Exported variables
     //export const language = "HTML"; // language of the code
@@ -59,7 +60,7 @@
 
     // Open a new tab in the current editor
     function openNewTab(name = "Untitled") {
-        setEditorID(id);
+        setEditor(thisEditor);
 
         tabs.push({
             name,
@@ -74,7 +75,7 @@
 
     // Open file in current tab
     export function openInCurrentTab(file = "") {
-        setEditorID(id);
+        setEditor(thisEditor);
 
         loadFile(file);
     }
@@ -239,7 +240,7 @@
         <div class="tab">
             <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
             <textarea spellcheck="false" bind:value={ tabs[currentTabID].content } on:keydown={ tabCheck } bind:this={ textarea } 
-                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditorID(id) } }></textarea>
+                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditor(thisEditor) } }></textarea>
         </div>
     </div>
     <div class="details">

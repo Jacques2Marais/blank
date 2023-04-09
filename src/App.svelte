@@ -1,18 +1,13 @@
 <script>
     import Editor from './lib/edit-view/Editor.svelte';
     import Renderer from './lib/edit-view/Renderer.svelte';
-
     import Sidebar from './lib/sidebar/Sidebar.svelte';
-
-    let html = '<h1>Hello, world!</h1>';
-    let css = 'h1 { color: red; }';
-
-    let editors = [];
 </script>
 
 <main class="container">
     <div class="sidebar-container">
-        <Sidebar editors={ editors } />
+        <!-- The left sidebar -->
+        <Sidebar/>
     </div>
     <div class="edit-view-container">
         <div class="column-divider">
@@ -27,10 +22,10 @@
             <div class="row-divider">
                 <div>
                     <!-- An Editor is a block in which code can be inputted. -->
-                    <Editor id={0} bind:this={ editors[0] } />
+                    <Editor id={0} />
                 </div>
                 <div>
-                    <Editor id={1} bind:this={ editors[1] } />
+                    <Editor id={1} />
                 </div>
             </div>
         </div>

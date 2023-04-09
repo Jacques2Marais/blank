@@ -1,4 +1,6 @@
 <script>
+    import EmptyState from "../utilities/EmptyState.svelte";
+
     import { renderedURL } from "./render";
     import { invoke } from "@tauri-apps/api/tauri"
     import { typeFromPath } from "./filetypes";
@@ -9,9 +11,6 @@
 
     $: if (frame != null) {
         frame.srcdoc = content;
-        /*frame.contentWindow.document.open();
-        frame.contentWindow.document.write(content);
-        frame.contentWindow.document.close();*/
     }
 
     renderedURL.subscribe((url) => {
@@ -26,17 +25,25 @@
         interval = setInterval(() => {
             invoke("inline_html", { file: url }).then((res) => {
                 content = res;
-                console.log("Content: ", content);
             });
         }, 1000);
     });
 </script>
-
-<iframe frameborder="0" bind:this={ frame }>Hi</iframe>
+{#if content.length > 0}
+    <iframe frameborder="0" bind:this={ frame } title="page preview frame"></iframe>
+{:else}
+    <div id="nopage">
+        <EmptyState text="No page selected for preview."/>
+    </div>
+{/if}
 
 <style>
     iframe {
         width: 100%;
+        height: 100%;
+    }
+
+    #nopage {
         height: 100%;
     }
 </style>
