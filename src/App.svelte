@@ -22,10 +22,10 @@
             <div class="row-divider">
                 <div>
                     <!-- An Editor is a block in which code can be inputted. -->
-                    <Editor id={0} />
+                    <Editor id={0}/>
                 </div>
                 <div>
-                    <Editor id={1} />
+                    <Editor id={1}/>
                 </div>
             </div>
         </div>

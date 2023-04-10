@@ -1,19 +1,23 @@
 <script>
     import { save } from "@tauri-apps/api/dialog";
     import { invoke } from "@tauri-apps/api/tauri"
-    import { setEditor } from "./edit";
+    import { editorID, setEditorID, fileToOpen } from "../stores/edit";
     import { typeFromPath } from "./filetypes";
 
     // Internal variables
     let numWords = 0;
     let textarea = null;
     let preElement = null;
-    let thisEditor = this;
 
     // Exported variables
     //export const language = "HTML"; // language of the code
-    export const theme = "Solarized (light)"; // syntax highlighting theme
-    export const id = 0; // id of the editor
+    export let theme = "Solarized (light)"; // syntax highlighting theme
+    export let id = 0; // id of the editor
+
+    let activeEditorID = 0;
+    editorID.subscribe((id) => {
+        activeEditorID = id;
+    });
     //export let value = ""; // editor content/value
 
     // Count the number of words in the inputted code
@@ -22,6 +26,7 @@
     });*/
 
     /* Tab functionality */
+    // List of tabs in this editor
     let tabs = [
         {
             name: "index.html",
@@ -31,9 +36,20 @@
             path: ""
         }
     ];
+
+    // Currently opened tab in this editor
     let currentTabID = 0;
     let currentTab;
     $: currentTab = tabs[currentTabID];
+
+    // Check for incoming file open requests, and open them 
+    // if current editor is active
+    fileToOpen.subscribe((path) => {
+        console.log(activeEditorID, id);
+        if (activeEditorID == id) {
+            openInNewTab(path);
+        }
+    });
 
     // Check if tab with given path is in list of tabs,
     // and if it is return its id
@@ -44,6 +60,7 @@
 
         for (let i = 0; i < tabs.length; i++) {
             if (tabs[i].path == path) {
+
                 return i;
             }
         }
@@ -58,9 +75,23 @@
         syntaxHighlight();
     }
 
+    // Close tab given its id
+    function closeTab(tabID) {
+        /*if (currentTabID == tabID) {
+            currentTabID = tabID == 0 ? 0: tabID - 1;
+        }*/
+
+        //console.log("Closing tab", tabID);
+
+        tabs = tabs.filter((tab, i) => {
+            console.log(i, tabID);
+            return i != tabID;
+        });
+    }
+
     // Open a new tab in the current editor
     function openNewTab(name = "Untitled") {
-        setEditor(thisEditor);
+        setEditorID(id);
 
         tabs.push({
             name,
@@ -75,7 +106,7 @@
 
     // Open file in current tab
     export function openInCurrentTab(file = "") {
-        setEditor(thisEditor);
+        setEditorID(id);
 
         loadFile(file);
     }
@@ -83,6 +114,7 @@
     // Open file in new tab
     export function openInNewTab(file = "") {
         let tab = tabExists(file);
+        console.log("Tab:", tab);
         if (tab > -1) {
             loadTab(tab);
             return;
@@ -181,6 +213,10 @@
 
     // Sync the scroll values of the textarea and the pre element
     function scrollSync() {
+        if (!textarea || !preElement) {
+            return;
+        }
+
         preElement.scrollTop = textarea.scrollTop;
         preElement.scrollLeft = textarea.scrollLeft;
     }
@@ -240,18 +276,21 @@
         <div class="tab">
             <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
             <textarea spellcheck="false" bind:value={ tabs[currentTabID].content } on:keydown={ tabCheck } bind:this={ textarea } 
-                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditor(thisEditor) } }></textarea>
+                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditorID(id); } }></textarea>
         </div>
     </div>
     <div class="details">
-        <span>
+        <!--span>
             { numWords } { numWords == 1 ? "word": "words" }
-        </span>
+        </span-->
         <div class="tabsNav">
             {#each tabs as tab, i}
-                <button class:active={ i == currentTabID } on:click={ () => { loadTab(i) } }>{ tab.name }</button>
+                <span class="tabControl" class:active={ i == currentTabID }>
+                    <button class="tabName" on:click={ () => { loadTab(i) } }>{ tab.name }
+                    </button><button class="tabClose" on:click={ () => { closeTab(i) } }>x</button>
+                </span>
             {/each}
-            <button on:click={ () => { openNewTab() } }>+</button>
+            <button class="tabAdd" on:click={ () => { openNewTab() } }>+</button>
         </div>
     </div>
 </main>
@@ -279,16 +318,52 @@
         float: right;
     }
 
-    div.tabsNav button {
-        border: 0;
-        background: transparent;
-        padding: 0 0.5em;
-        margin: 0 0.5em;
+    div.tabsNav span.tabControl {
+        display: inline-block;
+
+        margin: 0;
+        padding: 0.2em 0.5em;
+
         cursor: pointer;
     }
 
-    div.tabsNav button.active {
+    div.tabsNav span.tabControl:not(.active):hover {
         background: #ccc;
+    }
+
+    div.tabsNav span.tabControl.active {
+        background: #bbb;
+    }
+
+    div.tabsNav button {
+        border: 0;
+        cursor: pointer;
+    }
+
+    div.tabsNav button.tabName {
+        background: transparent;
+        margin: 0;
+        padding: 0 0.4em;
+    }
+
+    div.tabsNav span.tabControl button.tabClose {
+        font-size: 0.7em;
+        background: #aaa;
+
+        position: relative;
+        top: -2px;
+    }
+
+    div.tabsNav span.tabControl button.tabClose:hover {
+        background: #9f9f9f;
+    }
+
+    div.tabsNav button.tabAdd {
+        margin-left: 0.5em;
+    }
+
+    div.tabsNav button.tabAdd:hover {
+        background: #b0b0b0;
     }
 
     textarea, pre {

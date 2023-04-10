@@ -1,8 +1,9 @@
 <script>
     import { invoke } from "@tauri-apps/api/tauri";
     import DirectoryView from "./DirectoryView.svelte";
-    import { setRenderedURL } from "../edit-view/render";
-    import { editor } from "../edit-view/edit";
+    import { setRenderedURL } from "../stores/render";
+    import { openFile } from "../stores/edit";
+    import { typeFromPath } from "../edit-view/filetypes";
 
     // The directory to display on current level
     export let directory = "";
@@ -35,12 +36,12 @@
         });
     }
 
-    function fileClick(file) {
-        setRenderedURL(file);
-
-        if ($editor) {
-            $editor.openInNewTab(file);
+    function fileClick(path) {
+        if (typeFromPath(path) == "HTML") {
+            setRenderedURL(path);
         }
+
+        openFile(path);
     }
 </script>
 
@@ -79,6 +80,13 @@
 
     span:not(.toggleOpenIcon) {
         width: 100%;
+
+        padding: 0.25em;
+        box-sizing: border-box;
+    }
+
+    span:not(.toggleOpenIcon):hover {
+        background-color: #eee;
     }
 
     span.toggleOpenIcon {

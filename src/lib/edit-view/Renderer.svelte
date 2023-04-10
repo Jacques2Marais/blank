@@ -1,23 +1,20 @@
 <script>
     import EmptyState from "../utilities/EmptyState.svelte";
 
-    import { renderedURL } from "./render";
-    import { invoke } from "@tauri-apps/api/tauri"
-    import { typeFromPath } from "./filetypes";
+    import { renderedURL } from "../stores/render";
+    import { invoke } from "@tauri-apps/api/tauri";
 
     let content = "";
-    let frame = null;
     let interval = null;
 
-    $: if (frame != null) {
-        frame.srcdoc = content;
-    }
+    // Update the iframe element's contents when the content variable changes
+    let frame = null;
+    $: if (frame) frame.srcdoc = content;
 
+    // Update the content variable when the renderedURL changes, and
+    // check for changes every second
     renderedURL.subscribe((url) => {
-        if (typeFromPath(url) != "HTML") {
-            return;
-        }
-
+        // Clear the interval if it's already running
         if (interval != null) {
             clearInterval(interval);
         }
