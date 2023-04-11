@@ -3,6 +3,7 @@
     import { invoke } from "@tauri-apps/api/tauri"
     import { editorID, setEditorID, fileToOpen } from "../stores/edit";
     import { typeFromPath } from "./filetypes";
+    import EmptyState from "../utilities/EmptyState.svelte";
 
     // Internal variables
     let numWords = 0;
@@ -42,13 +43,16 @@
     let currentTab;
     $: currentTab = tabs[currentTabID];
 
-    // Check for incoming file open requests, and open them 
-    // if current editor is active
+    // Check for incoming file open requests, and open them
+    // if current editor is active. Don't subscribe to 
+    // initialization.
+    let initial = true;
     fileToOpen.subscribe((path) => {
-        console.log(activeEditorID, id);
-        if (activeEditorID == id) {
+        if (activeEditorID == id && !initial) {
             openInNewTab(path);
         }
+
+        initial = false;
     });
 
     // Check if tab with given path is in list of tabs,
@@ -77,16 +81,17 @@
 
     // Close tab given its id
     function closeTab(tabID) {
-        /*if (currentTabID == tabID) {
-            currentTabID = tabID == 0 ? 0: tabID - 1;
-        }*/
+        if (currentTabID >= tabID) {
+            currentTabID--;
+        }
 
-        //console.log("Closing tab", tabID);
+        console.log("Closing tab", tabID);
 
         tabs = tabs.filter((tab, i) => {
-            console.log(i, tabID);
             return i != tabID;
         });
+
+        console.log(tabs);
     }
 
     // Open a new tab in the current editor
@@ -125,6 +130,8 @@
         if (file != "") {
             openInCurrentTab(file);
         }
+
+        console.trace();
     }
 
     /* Syntax highlighting */
@@ -273,16 +280,20 @@
 
 <main>
     <div class="tabs">
-        <div class="tab">
-            <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
-            <textarea spellcheck="false" bind:value={ tabs[currentTabID].content } on:keydown={ tabCheck } bind:this={ textarea } 
-                on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditorID(id); } }></textarea>
-        </div>
+        { #if currentTabID > -1 }
+            <div class="tab">
+                <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
+                <textarea spellcheck="false" bind:value={ tabs[currentTabID].content } on:keydown={ tabCheck } bind:this={ textarea } 
+                    on:scroll={ scrollSync } on:input={ textareaChange } on:focus={ () => { setEditorID(id); } }></textarea>
+            </div>
+        { :else }
+            <EmptyState text="No tabs open in this editor!"/>
+        { /if }
     </div>
     <div class="details">
-        <!--span>
-            { numWords } { numWords == 1 ? "word": "words" }
-        </span-->
+        <span class="tabLanguage">
+            { tabs[currentTabID].language }
+        </span>
         <div class="tabsNav">
             {#each tabs as tab, i}
                 <span class="tabControl" class:active={ i == currentTabID }>
@@ -312,6 +323,19 @@
         bottom: 0;
         left: 0;
         right: 0;
+    }
+
+    div.tabs {
+        height: calc(100% - 38px);
+        width: 100%;
+    }
+
+    span.tabLanguage {
+        font-size: 0.8em;
+        color: #333;
+
+        position: relative;
+        top: 0.2em;
     }
 
     div.tabsNav {
