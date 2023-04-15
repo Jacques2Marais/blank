@@ -1,4 +1,8 @@
 <script>
+    import { EditorState } from '@codemirror/state'
+    import { EditorView, keymap } from '@codemirror/view'
+    import { javascript } from "@codemirror/lang-javascript";
+
     import { save } from "@tauri-apps/api/dialog";
     import { invoke } from "@tauri-apps/api/tauri"
     import { editorID, setEditorID, fileToOpen } from "../stores/edit";
@@ -6,11 +10,10 @@
     import { editorTools } from "./editorTools";
     import EmptyState from "../utilities/EmptyState.svelte";
 
-    // Internal variables]
-    let textarea = null;
-    let preElement = null;
+    // Internal variables
 
     // Exported variables
+    //export const language = "HTML"; // language of the code
     export let theme = "Solarized (light)"; // syntax highlighting theme
     export let id = 0; // id of the editor
 
@@ -18,6 +21,12 @@
     editorID.subscribe((id) => {
         activeEditorID = id;
     });
+    //export let value = ""; // editor content/value
+
+    // Count the number of words in the inputted code
+    /*$: invoke("count_words", { value }).then((res) => {
+        numWords = res;
+    });*/
 
     /* Tab functionality */
     // List of tabs in this editor
@@ -68,8 +77,6 @@
     // Load tab given its id
     function loadTab(tabID) {
         currentTabID = tabID;
-
-        syntaxHighlight();
     }
 
     // Close tab given its id
@@ -127,107 +134,6 @@
         console.trace();
     }
 
-    /* Syntax highlighting */
-    let themeCSS = ""; // css for the syntax highlighting theme (classes with corresponding styles)
-
-    // Load syntax highlighting theme's css
-    invoke("load_syntax_highlight_theme_css", { theme }).then((res) => {
-        themeCSS = res;
-    });
-
-    // Escape HTML code
-    function escapeHTML(unsafe) {
-        return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
-    // Syntax highlight the code and sync the scroll values
-    // TODO: split syntax highlighting into chunks (e.g. lines or blocks) to prevent lag
-    function syntaxHighlight() {
-        if (tabs[currentTabID].language == "Text") {
-            tabs[currentTabID].syntaxHighlighted = escapeHTML(tabs[currentTabID].content);
-            setTimeout(scrollSync);
-            return;
-        }
-
-        invoke("syntax_highlight", {
-            code: tabs[currentTabID].content,
-            language: tabs[currentTabID].language,
-        }).then((res) => {
-            tabs[currentTabID].syntaxHighlighted = res;
-            setTimeout(scrollSync);
-        });
-    }
-
-    syntaxHighlight();
-
-
-    /* Other functionality */
-    // TODO: tab level should be based on the last line
-    let tabLevel = 0; // indicates auto-indent level
-
-    // Handle some key presses in textarea
-    function tabCheck(e) {
-        if (e.key == "Tab") {
-            // tab => insert tab instead of shifting focus to next textarea
-            e.preventDefault();
-
-            let start = textarea.selectionStart;
-            let end = textarea.selectionEnd;
-
-            // set textarea value to: text before caret + tab + text after caret
-            tabs[currentTabID].content = tabs[currentTabID].content.substring(0, start) + "\t" + tabs[currentTabID].content.substring(end);
-
-            // put caret at right position again
-            setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + 1});
-
-            // increase current tab level
-            tabLevel++;
-        } else if (e.key == "Enter") {
-            setTimeout(() => {
-                // TODO: fix auto-indentation
-                let indent = "";
-
-                for (let i = 0; i < tabLevel; i++) {
-                    indent += "\t";
-                }
-
-                let start = textarea.selectionStart;
-                let end = textarea.selectionEnd;
-                //tabs[currentTab].content = tabs[currentTab].content.substring(0, start) + indent + tabs[currentTab].content.substring(end);
-
-                setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + tabLevel});
-            });
-        } else if (e.key == "s") {
-            // ctrl + s => save file
-            if (e.ctrlKey) {
-                e.preventDefault();
-                saveFile();
-            }
-        }
-    }
-
-    // Sync the scroll values of the textarea and the pre element
-    function scrollSync() {
-        if (!textarea || !preElement) {
-            return;
-        }
-
-        preElement.scrollTop = textarea.scrollTop;
-        preElement.scrollLeft = textarea.scrollLeft;
-    }
-
-    // Sync the scroll values when the textarea is scrolled
-    function textareaChange(e) {
-        scrollSync();
-
-        syntaxHighlight();
-    }
-
     /* File functionality */
 
     // Internal variables
@@ -263,36 +169,22 @@
             tabs[currentTabID].path = path;
             currentTab.name = path.split("/").pop();
             currentTab.language = typeFromPath(path);
-
-            syntaxHighlight();
         });
     }
 
-    /* Editing tools */
-    // Trigger hover events on the textarea on the underlying pre element
-    function checkHover(e) {
-        let element = document.elementsFromPoint(e.clientX, e.clientY)[1];
+    /* Editor functionality */
+    const state = EditorState.create({  })
 
-        // The element is a syntax highlighted span
-        if (element.tagName == "SPAN") {
-            editorTools[currentTab.language](element);
-        } else {
-            editorTools[currentTab.language](null);
-        }
-    }
+    const view = new EditorView({ state })
+
+    $: if (currentTabID) document.querySelector('#editor').append(view.dom)
 </script>
-
-{ @html "<" + "style>" + themeCSS + "</style>" }
 
 <main>
     <div class="tabs">
         { #if currentTabID > -1 }
             <div class="tab">
-                <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
-                <textarea spellcheck="false" bind:value={ tabs[currentTabID].content }
-                on:keydown={ tabCheck } bind:this={ textarea } on:mousemove={ checkHover }
-                    on:scroll={ scrollSync } on:input={ textareaChange }
-                    on:focus={ () => { setEditorID(id); } }></textarea>
+                <div id="editor"></div>
             </div>
         { :else }
             <EmptyState text="No tabs open in this editor!"/>
@@ -396,55 +288,6 @@
 
     div.tabsNav button.tabAdd:hover {
         background: #b0b0b0;
-    }
-
-    textarea, pre {
-        /* Both elements need the same text and space styling so they are directly on top of each other */
-        display: block;
-        
-        margin: 0;
-        padding: 10px;
-        border: 0;
-        width: calc(100%);
-        height: calc(100% - 2em);
-        box-sizing: border-box;
-
-        position: absolute;
-        top: 0;
-        left: 0;
-
-        overflow: auto;
-        white-space: pre-wrap;
-    }
-
-    textarea, pre, pre * {
-        /* Also add text styles to highlighing tokens */
-        font-size: 15px;
-        font-family: monospace;
-        line-height: 20px;
-        tab-size: 2;
-    }
-
-
-/* Move the textarea in front of the result */
-
-    textarea {
-        z-index: 1;
-
-        color: transparent;
-        background: transparent;
-        caret-color: black;
-        outline: none;
-
-        resize: none;
-    }
-
-    textarea::-webkit-scrollbar {
-        display: none;
-    }
-
-    pre {
-        z-index: 0;
     }
 </style>
 

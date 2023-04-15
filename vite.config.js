@@ -28,4 +28,7 @@ export default defineConfig(async () => ({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
+  optimizeDeps: {
+    exclude: ["codemirror", "@codemirror/lang-javascript" /* ... */],
+  },
 }));
