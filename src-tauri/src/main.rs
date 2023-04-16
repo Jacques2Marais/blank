@@ -10,7 +10,6 @@ use syntect::html::{ClassedHTMLGenerator, ClassStyle, css_for_theme_with_class_s
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 use tauri::regex::Regex;
-use tl::queryselector::selector;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 // Count the number of words given a string and return an integer
@@ -90,8 +89,8 @@ fn inline_html(file: &str) -> String {
     }
 
     println!("File: {}", file);
-    let filePath = Path::new(file);
-    let fileDir = filePath.parent().unwrap();
+    let file_path = Path::new(file);
+    let file_dir = file_path.parent().unwrap();
 
     // Read HTML file
     let html = fs::read_to_string(file).unwrap();
@@ -106,7 +105,7 @@ fn inline_html(file: &str) -> String {
     for script in scripts {
         let script = script.get(parser).unwrap().as_tag().unwrap();
         let src = script.attributes().get("src").unwrap().unwrap().try_as_utf8_str().unwrap();
-        let abs_src = absolutize(src, fileDir.to_str().unwrap());
+        let abs_src = absolutize(src, file_dir.to_str().unwrap());
 
         let contents = fs::read_to_string(abs_src.clone()).unwrap();
         let re = Regex::new(&format!(r#"<script (.*)src="{}"(.*)></script>"#, src)).unwrap();
@@ -120,7 +119,7 @@ fn inline_html(file: &str) -> String {
     for link in links {
         let link = link.get(parser).unwrap().as_tag().unwrap();
         let href = link.attributes().get("href").unwrap().unwrap().try_as_utf8_str().unwrap();
-        let abs_href = absolutize(href, fileDir.to_str().unwrap());
+        let abs_href = absolutize(href, file_dir.to_str().unwrap());
         let contents = fs::read_to_string(abs_href.clone()).unwrap();
         let re = Regex::new(&format!(r#"<link (.*)href="{}"(.*)/?>(</link>)?"#, href)).unwrap();
         new_html = re.replace(&new_html, &format!(r#"<style>{}</style>"#, contents)).to_string();
