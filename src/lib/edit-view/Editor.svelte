@@ -24,7 +24,7 @@
     let tabs = [
         {
             name: "index.html",
-            content: "<h1>Hello world!</h1>",
+            content: "<h1><span>Hello <span>world!</span></span></h1>",
             language: "HTML",
             syntaxHighlighted: "",
             path: ""
@@ -247,6 +247,8 @@
             }).then((res) => {
                 if (res) {
                     tabs[currentTabID].path = res;
+                    currentTab.name = res.split("/").pop();
+                    currentTab.language = typeFromPath(res);
                     invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
                 }
             });

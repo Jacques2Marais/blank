@@ -83,22 +83,47 @@ export const editorTools = {
     },
 
     // Check whether a given element represents the start of a tag
-    isStartTag(element) {
+    isEndTag(element) {
         return this.isTagName(element) && element.previousElementSibling && element.previousElementSibling.textContent == "</";
     },
 
     // Check whether a given element represents the end of a tag
-    isEndTag(element) {
-        return this.isTagName(element) && !this.isStartTag(element);
+    isStartTag(element) {
+        return this.isTagName(element) && !this.isEndTag(element);
     },
 
     // Get the corresponding start/end tag of a given tag
     getCorrespondingTag(element) {
         const textContent = element.textContent;
+        let numTagJumps = 0;
 
-        const correspondingTag = this.isStartTag(element) ? 
+        let correspondingTag = this.isStartTag(element) ? 
             this.getNextElementWithClassAndText(element, "blank-editor-name", textContent): 
             this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
+
+        if (this.isStartTag(element)) {
+            while (this.isStartTag(correspondingTag)) {
+                numTagJumps++;
+                correspondingTag = this.getNextElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+
+            console.log("numTagJumps: " + numTagJumps);
+
+            while (this.isEndTag(correspondingTag) && numTagJumps > 0) {
+                numTagJumps--;
+                correspondingTag = this.getNextElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+        } else {
+            while (this.isEndTag(correspondingTag)) {
+                numTagJumps++;
+                correspondingTag = this.getPreviousElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+
+            while (this.isStartTag(correspondingTag) && numTagJumps > 0) {
+                numTagJumps--;
+                correspondingTag = this.getPreviousElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+        }
 
         return correspondingTag;
     },
@@ -146,7 +171,8 @@ export const editorTools = {
         if (element.classList.contains('blank-editor-html')) {
             if (isStartTag || isEndTag) {
                 // Get corresponding tag
-                const correspondingTag = isStartTag ? this.getNextElementWithClassAndText(element, "blank-editor-name", textContent) : this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
+                //const correspondingTag = isStartTag ? this.getNextElementWithClassAndText(element, "blank-editor-name", textContent) : this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
+                const correspondingTag = this.getCorrespondingTag(element);
 
                 // Add hover class to begin and end tag
                 element.classList.add("blank-editor-tag-hovered");
