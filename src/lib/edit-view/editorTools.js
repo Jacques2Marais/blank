@@ -1,5 +1,7 @@
 export const editorTools = {
     /* Utilities */
+
+    // Get the next element with a specific class
     getNextElementWithClass(firstElement, className) {
         let element = firstElement.nextElementSibling;
         let nextParent = firstElement.parentElement.nextElementSibling;
@@ -25,6 +27,8 @@ export const editorTools = {
 
         return element;
     },
+
+    // Get the previous element with a specific class
     getPreviousElementWithClass(firstElement, className) {
         let element = firstElement.previousElementSibling;
         let prevParent = firstElement.parentElement.previousElementSibling;
@@ -49,6 +53,54 @@ export const editorTools = {
         }
 
         return element;
+    },
+
+    // Get the next element with a specific class and text content
+    getNextElementWithClassAndText(firstElement, className, text) {
+        let element = this.getNextElementWithClass(firstElement, className);
+
+        while (element && element.textContent != text) {
+            element = this.getNextElementWithClass(element, className);
+        }
+
+        return element;
+    },
+
+    // Get the previous element with a specific class and text content
+    getPreviousElementWithClassAndText(firstElement, className, text) {
+        let element = this.getPreviousElementWithClass(firstElement, className);
+
+        while (element && element.textContent != text) {
+            element = this.getPreviousElementWithClass(element, className);
+        }
+
+        return element;
+    },
+
+    // Check whether given element is a tag name
+    isTagName(element) {
+        return element.classList.contains("blank-editor-name");
+    },
+
+    // Check whether a given element represents the start of a tag
+    isStartTag(element) {
+        return this.isTagName(element) && element.previousElementSibling && element.previousElementSibling.textContent == "</";
+    },
+
+    // Check whether a given element represents the end of a tag
+    isEndTag(element) {
+        return this.isTagName(element) && !this.isStartTag(element);
+    },
+
+    // Get the corresponding start/end tag of a given tag
+    getCorrespondingTag(element) {
+        const textContent = element.textContent;
+
+        const correspondingTag = this.isStartTag(element) ? 
+            this.getNextElementWithClassAndText(element, "blank-editor-name", textContent): 
+            this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
+
+        return correspondingTag;
     },
 
     hoveredTags: [],
@@ -83,15 +135,18 @@ export const editorTools = {
         // Update the previous element
         this.prevElement = element;
 
+        // Text content of the element
+        const textContent = element.textContent;
+
         // Is the element an HTML tag name syntax definition?
-        const isTagName = element.classList.contains("blank-editor-name");
-        const isEndTag = isTagName && element.previousElementSibling && element.previousElementSibling.textContent == "</";
-        const isStartTag = isTagName && !isEndTag;
+        const isTagName = this.isTagName(element);
+        const isEndTag = this.isEndTag(element);
+        const isStartTag = this.isStartTag(element);
 
         if (element.classList.contains('blank-editor-html')) {
             if (isStartTag || isEndTag) {
                 // Get corresponding tag
-                const correspondingTag = isStartTag ? this.getNextElementWithClass(element, "blank-editor-name") : this.getPreviousElementWithClass(element, "blank-editor-name");
+                const correspondingTag = isStartTag ? this.getNextElementWithClassAndText(element, "blank-editor-name", textContent) : this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
 
                 // Add hover class to begin and end tag
                 element.classList.add("blank-editor-tag-hovered");
