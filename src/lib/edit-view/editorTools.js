@@ -1,6 +1,5 @@
 export const editorTools = {
-    /* Utilities */
-
+    /* Hover Utilities */
     // Get the next element with a specific class
     getNextElementWithClass(firstElement, className) {
         let element = firstElement.nextElementSibling;
@@ -141,6 +140,7 @@ export const editorTools = {
     // Keep a temporary reference to the previous element to avoid unnecessary work
     prevElement: null,
 
+    /* Hover tools for different languages */
     // HTML language editor tools
     HTML(element) {
         // If the element is null, reset and return
@@ -185,9 +185,143 @@ export const editorTools = {
         }
     },
 
+    /* Typing utilities */
+    // Get current tag's name if at the start of a tag
+    getCurrentTagName(textarea, cursorPosition) {
+        return textarea.value.substring(textarea.value.lastIndexOf("<", cursorPosition - 1) + 1, cursorPosition);
+    },
+
+    // Insert a string at the cursor's position
+    insertAtCursor(textarea, cursorPosition, string, moveCursorTo = "start") {
+        console.log("cursorPosition: " + cursorPosition);
+        
+        textarea.value = textarea.value.substring(0, cursorPosition)
+            + string
+            + textarea.value.substring(cursorPosition);
+
+        if (moveCursorTo == "start") {
+            textarea.selectionStart = textarea.selectionEnd = cursorPosition;
+        } else if (moveCursorTo == "end") {
+            textarea.selectionStart = textarea.selectionEnd = cursorPosition + string.length;
+        }
+    },
+
+    // Move cursor forward or backward by a given number of characters
+    moveCursor(textarea, cursorPosition, numCharacters) {
+        textarea.selectionStart = textarea.selectionEnd = cursorPosition + numCharacters;
+    },
+
+    // Get string representing the current tab depth
+    getTabDepthString(extraTabs = 0) {
+        let tabDepthString = "";
+
+        for (let i = 0; i < this.HTMLContext.tabDepth + extraTabs; i++) {
+            tabDepthString += "\t";
+        }
+
+        return tabDepthString;
+    },
+
+    // Trigger input event for syntax highlighting
+    triggerInputEvent(textarea) {
+        var event = new Event('input', {
+            bubbles: true,
+            cancelable: true,
+        });
+          
+        textarea.dispatchEvent(event);
+    },
+
+
     // Remove all additions made to the editor
     resetHTML() {
         this.removeHoverClassesFromAllTags();
         this.prevElement = null;
-    }
+    },
+
+    /* Typing tools for specific languages */
+    HTMLContext: {
+        // Is the cursor inside an opening tag?
+        inOpeningTag: false,
+
+        // Is the cursor inside a self-closing tag?
+        inSelfClosingTag: false,
+
+        // Current tag name
+        currentTagName: "",
+
+        // Is inside an element's body?
+        inElementBody: false,
+
+        // Is inside an empty element?
+        inEmptyElementBody : false,
+
+        // Tab depth
+        tabDepth: 0
+    },
+
+
+
+    // HTML language editor tools
+    HTMLTyping(textarea, event) {
+        // Get the current cursor position
+        const cursorPosition = textarea.selectionStart;
+
+        // Auto close tags
+        if (event.key == ">") {
+            if (this.HTMLContext.inOpeningTag && !this.HTMLContext.inSelfClosingTag) {
+                if (this.HTMLContext.currentTagName.length == 0) {
+                    // Set tag name
+                    this.HTMLContext.currentTagName = this.getCurrentTagName(textarea, cursorPosition);
+
+                    console.log(textarea.value[cursorPosition]);
+                }
+
+                // Insert closing tag after cursor if the cursor was in a 
+                // non-self-closing, opening tag
+                this.insertAtCursor(textarea, cursorPosition, `</${this.HTMLContext.currentTagName}>`);
+
+                // Reset & set context
+                this.HTMLContext.inOpeningTag = false;
+                this.HTMLContext.inSelfClosingTag = false;
+                this.HTMLContext.inElementBody = true;
+                this.HTMLContext.inEmptyElementBody = true;
+            }
+        } else if (event.key == "/") {
+            if (this.HTMLContext.inOpeningTag) {
+                // Set context
+                this.HTMLContext.inSelfClosingTag = true;
+            }
+        } else if (event.key == "<") {
+            // Set context
+            this.HTMLContext.inOpeningTag = true;
+            this.HTMLContext.inSelfClosingTag = false;
+            this.HTMLContext.inElementBody = false;
+            this.HTMLContext.currentTagName = "";
+        } else if (event.key == " ") {
+            if (this.HTMLContext.inOpeningTag && this.HTMLContext.currentTagName.length == 0) {
+                // Set tag name
+                this.HTMLContext.currentTagName = this.getCurrentTagName(textarea, cursorPosition);
+            }
+        } else if (event.key == "Enter") {
+            if (this.HTMLContext.inEmptyElementBody) {
+                this.HTMLContext.tabDepth++;
+                const tabDepthString = this.getTabDepthString();
+                const closingTabDepthString = this.getTabDepthString(-1);
+                const moveCursorBy = tabDepthString.length + 1;
+
+                const stringToInsert = `\n${tabDepthString}\n${closingTabDepthString}`;
+
+                // Insert tabs
+                this.insertAtCursor(textarea, cursorPosition, stringToInsert, "begin");
+                this.moveCursor(textarea, cursorPosition, moveCursorBy);
+
+                // Prevent default newline, but trigger input event for syntax highlighting
+                event.preventDefault();
+                this.triggerInputEvent(textarea);
+
+                // 
+            }
+        }
+    },
 }

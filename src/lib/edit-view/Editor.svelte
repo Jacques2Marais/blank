@@ -170,8 +170,8 @@
     // TODO: tab level should be based on the last line
     let tabLevel = 0; // indicates auto-indent level
 
-    // Handle some key presses in textarea
-    function tabCheck(e) {
+    /*/ Handle some key presses in textarea
+    /function tabCheck(e) {
         if (e.key == "Tab") {
             // tab => insert tab instead of shifting focus to next textarea
             e.preventDefault();
@@ -209,7 +209,7 @@
                 saveFile();
             }
         }
-    }
+    }*/
 
     // Sync the scroll values of the textarea and the pre element
     function scrollSync() {
@@ -282,6 +282,11 @@
             editorTools[currentTab.language](null);
         }
     }
+
+    // Handle textarea key presses
+    function textareaKeydown(e) {
+        editorTools[currentTab.language + "Typing"](textarea, e);
+    }
 </script>
 
 { @html "<" + "style>" + themeCSS + "</style>" }
@@ -292,7 +297,7 @@
             <div class="tab">
                 <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
                 <textarea spellcheck="false" bind:value={ tabs[currentTabID].content }
-                on:keydown={ tabCheck } bind:this={ textarea } on:mousemove={ checkHover }
+                on:keydown={ textareaKeydown } bind:this={ textarea } on:mousemove={ checkHover }
                     on:scroll={ scrollSync } on:input={ textareaChange }
                     on:focus={ () => { setEditorID(id); } }></textarea>
             </div>
