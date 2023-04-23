@@ -10,9 +10,6 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@codemirror/lang-javascript": "^6.1.6",
-    "@codemirror/state": "^6.2.0",
-    "@codemirror/view": "^6.9.4",
     "@tauri-apps/api": "^1.2.0",
     "svelte-codemirror-editor": "^1.1.0"
   },

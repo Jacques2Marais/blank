@@ -101,6 +101,28 @@ export const editorTools = {
             this.getPreviousElementWithClassAndText(element, "blank-editor-name", textContent);
 
         if (this.isStartTag(element)) {
+            while (this.isStartTag(correspondingTag) || (this.isEndTag(correspondingTag) && numTagJumps > 0)) {
+                if (this.isStartTag(correspondingTag)) {
+                    numTagJumps++;
+                } else if (this.isEndTag(correspondingTag)) {
+                    numTagJumps--;
+                }
+
+                correspondingTag = this.getNextElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+        } else if (this.isEndTag(element)) {
+            while (this.isEndTag(correspondingTag) || (this.isStartTag(correspondingTag) && numTagJumps > 0)) {
+                if (this.isEndTag(correspondingTag)) {
+                    numTagJumps++;
+                } else if (this.isStartTag(correspondingTag)) {
+                    numTagJumps--;
+                }
+
+                correspondingTag = this.getPreviousElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
+            }
+        }
+
+        /*if (this.isStartTag(element)) {
             while (this.isStartTag(correspondingTag)) {
                 numTagJumps++;
                 correspondingTag = this.getNextElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
@@ -122,7 +144,7 @@ export const editorTools = {
                 numTagJumps--;
                 correspondingTag = this.getPreviousElementWithClassAndText(correspondingTag, "blank-editor-name", textContent);
             }
-        }
+        }*/
 
         return correspondingTag;
     },
