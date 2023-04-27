@@ -215,8 +215,6 @@ export const editorTools = {
 
     // Insert a string at the cursor's position
     insertAtCursor(textarea, cursorPosition, string, moveCursorTo = "start") {
-        console.log("cursorPosition: " + cursorPosition);
-        
         textarea.value = textarea.value.substring(0, cursorPosition)
             + string
             + textarea.value.substring(cursorPosition);
@@ -279,15 +277,20 @@ export const editorTools = {
         inEmptyElementBody : false,
 
         // Tab depth
-        tabDepth: 0
+        tabDepth: 0,
+
+        // Is at the start of a newline?
+        isAtLineStart: false
     },
 
 
 
     // HTML language editor tools
     HTMLTyping(textarea, event) {
+        console.log("TYPETYPE");
+
         // Get the current cursor position
-        const cursorPosition = textarea.selectionStart;
+        const cursorPosition = textarea.selectionEnd;
 
         // Auto close tags
         if (event.key == ">") {
@@ -342,8 +345,109 @@ export const editorTools = {
                 event.preventDefault();
                 this.triggerInputEvent(textarea);
 
-                // 
+                // Set context
+                this.HTMLContext.inEmptyElementBody = false;
+            } else {
+                // Insert newline
+                this.insertAtCursor(textarea, cursorPosition, "\n", "end");
+
+                // Insert tabs
+                const tabDepthString = this.getTabDepthString();
+                this.insertAtCursor(textarea, cursorPosition + 1, tabDepthString, "end");
+
+                // Prevent default newline, but trigger input event for syntax highlighting
+                event.preventDefault();
+                this.triggerInputEvent(textarea);
+            }
+
+            // Set context
+            this.HTMLContext.isAtLineStart = true;
+        } else if (event.key == "Tab") {
+            event.preventDefault();
+
+            // Insert tab
+            this.insertAtCursor(textarea, cursorPosition, "\t");
+            this.moveCursor(textarea, cursorPosition, 1);
+
+            if (this.HTMLContext.isAtLineStart) {
+                this.HTMLContext.tabDepth++;
             }
         }
+
+        if (event.key != "Enter" && event.key != "Tab") {
+            this.HTMLContext.isAtLineStart = false;
+        }
     },
+
+    /* Caret movement tools for specific languages */
+    /* Utilities */
+
+    // Get the number of characters before & after the caret
+    getSurroundingCharacters(textarea, position, numCharacters, numCharactersForward = 0) {
+        if (numCharactersForward == 0) {
+            return textarea.value.substring(position - numCharacters, position + numCharacters);
+        } else {
+            return textarea.value.substring(position - numCharacters, position + numCharactersForward);
+        }
+    },
+
+    // Get the start position of the current line the caret is on
+    getLineStartPosition(textarea, position) {
+        return textarea.value.lastIndexOf("\n", position - 1) + 1;
+    },
+
+    // Get the tab depth of the current line the caret is on
+    getLineTabDepth(textarea, position) {
+        const lineStartPosition = this.getLineStartPosition(textarea, position);
+
+        let tabDepth = 0;
+
+        for (let i = lineStartPosition; i < position; i++) {
+            if (textarea.value[i] == "\t") {
+                tabDepth++;
+            } else {
+                break;
+            }
+        }
+
+        return tabDepth;
+    },
+
+    // Is at the start of a line?
+    isAtLineStart(textarea, position) {
+        let lineStartPosition = this.getLineStartPosition(textarea, position);
+
+        if (lineStartPosition == position) {
+            return true;
+        } 
+        
+        while (lineStartPosition < position) {
+            if (textarea.value[lineStartPosition] != "\t") {
+                return false;
+            }
+
+            lineStartPosition++;
+        }
+
+        return true;
+    },
+
+    /* Tools */
+    HTMLCaret(textarea, value, position) {
+        // If the caret is inside an empty element body, set the HTML context
+        if (this.getSurroundingCharacters(textarea, position, 1, 2) == "></") {
+            this.HTMLContext.inEmptyElementBody = true;
+            console.log(this.getSurroundingCharacters(textarea, position, 1, 2));
+        } else {
+            this.HTMLContext.inEmptyElementBody = false;
+        }
+
+        // Set the tab depth accordingly
+        this.HTMLContext.tabDepth = this.getLineTabDepth(textarea, position);
+
+        // If at the start of a line, set the HTML context
+        if (this.isAtLineStart(textarea, position)) {
+            this.HTMLContext.isAtLineStart = true;
+        }
+    }
 }

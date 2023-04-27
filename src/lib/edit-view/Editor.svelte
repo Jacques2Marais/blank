@@ -5,6 +5,7 @@
     import { typeFromPath } from "./filetypes";
     import { editorTools } from "./editorTools";
     import EmptyState from "../utilities/EmptyState.svelte";
+    import { text } from "svelte/internal";
 
     // Internal variables]
     let textarea = null;
@@ -283,14 +284,39 @@
         }
     }
 
-    // Handle textarea key presses
-    function textareaKeydown(e) {
-        editorTools[currentTab.language + "Typing"](textarea, e);
+    // Handle textarea key down presses
+    function textareaKeydown(event) {
+        editorTools[currentTab.language + "Typing"](textarea, event);
+    }
+
+    // Handle textarea key up presses
+    function textareaKeyup(event) {
+        if (event.key == "ArrowDown" || event.key == "ArrowUp" 
+            || event.key == "ArrowLeft" || event.key == "ArrowRight"
+            || event.key == "Home" || event.key == "End"
+            || event.key == "PageUp" || event.key == "PageDown"
+            || event.key == "Backspace" || event.key == "Delete") {
+            editorTools[currentTab.language + "Caret"](textarea, textarea.value, textarea.selectionEnd);
+        }
+    }
+
+    /*// Handle textarea selection changes
+    function selectionChange(e) {
+        editorTools[currentTab.language + "Selection"](textarea, textarea.value, textarea.selectionStart, textarea.selectionEnd);
+    }*/
+
+    // Handle textarea caret movement
+    function caretMove(e) {
+        editorTools[currentTab.language + "Caret"](textarea, textarea.value, textarea.selectionEnd);
     }
 </script>
 
 { @html "<" + "style>" + themeCSS + "</style>" }
 
+<!--svelte:document on:selectionchange={ selectionChange } /-->
+
+
+<span></span>
 <main>
     <div class="tabs">
         { #if currentTabID > -1 }
@@ -299,7 +325,7 @@
                 <textarea spellcheck="false" bind:value={ tabs[currentTabID].content }
                 on:keydown={ textareaKeydown } bind:this={ textarea } on:mousemove={ checkHover }
                     on:scroll={ scrollSync } on:input={ textareaChange }
-                    on:focus={ () => { setEditorID(id); } }></textarea>
+                    on:focus={ () => { setEditorID(id); } } on:mouseup={ caretMove } on:keyup={ textareaKeyup }></textarea>
             </div>
         { :else }
             <EmptyState text="No tabs open in this editor!"/>
