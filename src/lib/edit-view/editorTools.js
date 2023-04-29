@@ -1,3 +1,5 @@
+import { HTMLCompletions } from "../utilities/autoCompleteData";
+
 export const editorTools = {
     /* Hover Utilities */
     // Get the next element with a specific class
@@ -280,7 +282,10 @@ export const editorTools = {
         tabDepth: 0,
 
         // Is at the start of a newline?
-        isAtLineStart: false
+        isAtLineStart: false,
+
+        // Is inside of a pair of empty quotes? 
+        isInsideEmptyQuotes: ""
     },
 
 
@@ -372,10 +377,18 @@ export const editorTools = {
             if (this.HTMLContext.isAtLineStart) {
                 this.HTMLContext.tabDepth++;
             }
+        } else if (event.key == '"' || event.key == "'") {
+            // Auto close quote pairs
+            this.insertAtCursor(textarea, cursorPosition, event.key);
         }
 
         if (event.key != "Enter" && event.key != "Tab") {
             this.HTMLContext.isAtLineStart = false;
+        }
+
+        // Ensure it is a self-closing tag and not a random "/"
+        if (this.HTMLContext.inSelfClosingTag && event.key != ">" && event.key != "/") {
+            this.HTMLContext.inSelfClosingTag = false;
         }
     },
 
@@ -449,5 +462,67 @@ export const editorTools = {
         if (this.isAtLineStart(textarea, position)) {
             this.HTMLContext.isAtLineStart = true;
         }
+    },
+
+    /* Autocompletion */
+    currentWord: "",
+
+    objectKeysStartingWith(object, string) {
+        let keys = [];
+
+        for (let key in object) {
+            if (key.startsWith(string)) {
+                keys.push(key);
+            }
+        }
+
+        return keys;
+    },
+
+    // HTML
+    HTMLWords: {
+        tags: {
+            
+        },
+        attributes: [
+            "id",
+            "class",
+            "style"
+        ]
+    },
+
+    
+
+    HTMLAutoComplete(event) {
+        if (!/[a-zA-Z_\-]/.test(event.data)) {
+            this.currentWord = "";
+
+            return [];
+        } else if (event.data == null && event.inputType == "deleteContentBackward") {
+            this.currentWord = this.currentWord.slice(0, -1);
+
+            if (this.currentWord == "") {
+                return [];
+            }
+        } else {
+            this.currentWord += event.data;
+        }
+
+        if (this.HTMLContext.inOpeningTag && this.HTMLContext.currentTagName == "") {
+            return this.objectKeysStartingWith(HTMLCompletions.tagsWithAttributes, this.currentWord);
+        } else if (this.HTMLContext.inOpeningTag && this.HTMLContext.currentTagName != "") {
+            let attributes = [];
+            console.log(HTMLCompletions.tagsWithAttributes[this.HTMLContext.currentTagName]);
+
+            attributes = HTMLCompletions.tagsWithAttributes[this.HTMLContext.currentTagName];
+            attributes = attributes.concat(HTMLCompletions.globalAttributes);
+
+            console.log(attributes);
+
+            return attributes.filter(attribute => attribute.startsWith(this.currentWord))
+                .sort((a, b) => a.localeCompare(b));
+        }
+
+        return [];
     }
 }

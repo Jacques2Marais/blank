@@ -5,7 +5,10 @@
     import { typeFromPath } from "./filetypes";
     import { editorTools } from "./editorTools";
     import EmptyState from "../utilities/EmptyState.svelte";
-    import { text } from "svelte/internal";
+    
+    // Source: https://github.com/component/textarea-caret-position
+    import { getCaretCoordinates } from "../utilities/getCaretPosition";
+    import CodeComplete from "./CodeComplete.svelte";
 
     // Internal variables]
     let textarea = null;
@@ -24,8 +27,8 @@
     // List of tabs in this editor
     let tabs = [
         {
-            name: "index.html",
-            content: "<h1><span>Hello <span>world!</span></span></h1>",
+            name: "Untitled",
+            content: "",
             language: "HTML",
             syntaxHighlighted: "",
             path: ""
@@ -227,6 +230,8 @@
         scrollSync();
 
         syntaxHighlight();
+
+        autoComplete(e);
     }
 
     /* File functionality */
@@ -286,6 +291,12 @@
 
     // Handle textarea key down presses
     function textareaKeydown(event) {
+        const continueWithEditing = handleAutoCompleteKeyDown(event);
+
+        if (!continueWithEditing) {
+            return;
+        }
+        
         editorTools[currentTab.language + "Typing"](textarea, event);
     }
 
@@ -296,8 +307,75 @@
             || event.key == "Home" || event.key == "End"
             || event.key == "PageUp" || event.key == "PageDown"
             || event.key == "Backspace" || event.key == "Delete") {
-            editorTools[currentTab.language + "Caret"](textarea, textarea.value, textarea.selectionEnd);
+                caretMove();
         }
+    }
+
+    let autoCompleteX = 0;
+    let autoCompleteY = 0;
+    let showAutoComplete = false;
+    let autoCompleteEntries = [];
+    let autoCompleteIndex = 0;
+
+    $: if (!showAutoComplete) {
+        autoCompleteIndex = -1;
+    }
+
+    function handleAutoCompleteKeyDown(event) {
+        // Down arrow focuses on autocomplete and goes down
+        if (showAutoComplete && event.key == "ArrowDown") {
+            event.preventDefault();
+
+            autoCompleteIndex++;
+            if (autoCompleteIndex >= autoCompleteEntries.length) {
+                autoCompleteIndex = 0;
+            }
+
+            return false;
+        } else if (showAutoComplete && event.key == "ArrowUp") {
+            event.preventDefault();
+
+            autoCompleteIndex--;
+            if (autoCompleteIndex < 0) {
+                autoCompleteIndex = autoCompleteEntries.length - 1;
+            }
+
+            return false;
+        } else if (showAutoComplete && event.key == "Enter" && autoCompleteIndex >= 0) {
+            event.preventDefault();
+
+            if (autoCompleteIndex >= 0) {
+                autoCompleteSelect({ detail: { entryValue: autoCompleteEntries[autoCompleteIndex] } });
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    function autoComplete(event) {
+        const caretPosition = getCaretCoordinates(textarea, textarea.selectionEnd);
+
+        autoCompleteX = caretPosition.left;
+        autoCompleteY = caretPosition.top + caretPosition.height;
+        autoCompleteEntries = editorTools[currentTab.language + "AutoComplete"](event);
+
+        // Only show auto complete if entries exist for it
+        if (autoCompleteEntries.length == 0) {
+            showAutoComplete = false;
+        } else {
+            showAutoComplete = true;
+        }
+    }
+
+    function autoCompleteSelect(event) {
+        const restOfWord = event.detail.entryValue.substring(editorTools.currentWord.length);
+
+        editorTools.insertAtCursor(textarea, textarea.selectionEnd, restOfWord, "end");
+        editorTools.triggerInputEvent(textarea);
+
+        showAutoComplete = false;
     }
 
     /*// Handle textarea selection changes
@@ -325,7 +403,12 @@
                 <textarea spellcheck="false" bind:value={ tabs[currentTabID].content }
                 on:keydown={ textareaKeydown } bind:this={ textarea } on:mousemove={ checkHover }
                     on:scroll={ scrollSync } on:input={ textareaChange }
-                    on:focus={ () => { setEditorID(id); } } on:mouseup={ caretMove } on:keyup={ textareaKeyup }></textarea>
+                    on:focus={ () => { setEditorID(id); } } on:mouseup={ caretMove } on:keyup={ textareaKeyup }
+                    on:paste={ caretMove }></textarea>
+            </div>
+            <div class="autocomplete" style:left={ autoCompleteX + "px" } style:top={ autoCompleteY + "px" } 
+                style:display={ showAutoComplete ? "block": "none" }>
+                    <CodeComplete entries={ autoCompleteEntries } on:selectEntry={ autoCompleteSelect } selectedEntry={ autoCompleteIndex }/>
             </div>
         { :else }
             <EmptyState text="No tabs open in this editor!"/>
@@ -369,6 +452,8 @@
     div.tabs {
         height: calc(100% - 38px);
         width: 100%;
+
+        position: relative;
     }
 
     span.tabLanguage {
@@ -478,6 +563,12 @@
 
     pre {
         z-index: 0;
+    }
+
+    /* Autocomplete */
+    .autocomplete {
+        position: absolute;
+        z-index: 2;
     }
 </style>
 
