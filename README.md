@@ -19,4 +19,4 @@ To setup and run the project: clone, change directory into base folder and then
 https://github.com/Jacques2Marais/blank/assets/88091427/f3f4c535-e5d2-4c07-b5f1-7c78598efea4
 
 ## Release
-The first version -- version 1.0.0 -- has also been released. You can find it [here](https://github.com/Jacques2Marais/blank/releases/tag/v1.0.0)!
+Pre-release 0.0.1, you can find it [here](https://github.com/Jacques2Marais/blank/releases/tag/v0.0.1)!
