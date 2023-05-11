@@ -13,6 +13,8 @@
 </div>
 
 <style>
+    @import "/fonts/Montserrat.css";
+
     .empty-state {
         display: flex;
         flex-direction: column;
@@ -20,16 +22,20 @@
         align-items: center;
         height: 100%;
 
-        background: #ddd;
-        color: #999;
+        background: #fafafa;;
+        color: #ccc;
+
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 600;
     }
 
     .empty-state p {
         margin: 0;
-        width: 10em;
+        width: 12em;
         text-align: center;
 
-        font-size: 1.2em;
+        font-size: 0.8em;
+        text-transform: uppercase;
     }
 
     .empty-state img {

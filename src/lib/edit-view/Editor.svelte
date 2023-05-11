@@ -9,10 +9,12 @@
     // Source: https://github.com/component/textarea-caret-position
     import { getCaretCoordinates } from "../utilities/getCaretPosition";
     import CodeComplete from "./CodeComplete.svelte";
+    import { each } from "svelte/internal";
 
-    // Internal variables]
+    // Internal variables
     let textarea = null;
     let preElement = null;
+    let lineNums = null;
 
     // Exported variables
     export let theme = "Solarized (light)"; // syntax highlighting theme
@@ -31,7 +33,8 @@
             content: "",
             language: "HTML",
             syntaxHighlighted: "",
-            path: ""
+            path: "",
+            lineNumbers: 0
         }
     ];
 
@@ -100,7 +103,8 @@
             content: "",
             language: "Text",
             syntaxHighlighted: "",
-            path: ""
+            path: "",
+            lineNumbers: 0
         });
 
         currentTabID = tabs.length - 1;
@@ -171,58 +175,16 @@
 
 
     /* Other functionality */
-    // TODO: tab level should be based on the last line
-    let tabLevel = 0; // indicates auto-indent level
-
-    /*/ Handle some key presses in textarea
-    /function tabCheck(e) {
-        if (e.key == "Tab") {
-            // tab => insert tab instead of shifting focus to next textarea
-            e.preventDefault();
-
-            let start = textarea.selectionStart;
-            let end = textarea.selectionEnd;
-
-            // set textarea value to: text before caret + tab + text after caret
-            tabs[currentTabID].content = tabs[currentTabID].content.substring(0, start) + "\t" + tabs[currentTabID].content.substring(end);
-
-            // put caret at right position again
-            setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + 1});
-
-            // increase current tab level
-            tabLevel++;
-        } else if (e.key == "Enter") {
-            setTimeout(() => {
-                // TODO: fix auto-indentation
-                let indent = "";
-
-                for (let i = 0; i < tabLevel; i++) {
-                    indent += "\t";
-                }
-
-                let start = textarea.selectionStart;
-                let end = textarea.selectionEnd;
-                //tabs[currentTab].content = tabs[currentTab].content.substring(0, start) + indent + tabs[currentTab].content.substring(end);
-
-                setTimeout(() => {textarea.selectionStart = textarea.selectionEnd = start + tabLevel});
-            });
-        } else if (e.key == "s") {
-            // ctrl + s => save file
-            if (e.ctrlKey) {
-                e.preventDefault();
-                saveFile();
-            }
-        }
-    }*/
-
     // Sync the scroll values of the textarea and the pre element
     function scrollSync() {
-        if (!textarea || !preElement) {
+        if (!textarea || !preElement || !lineNums) {
             return;
         }
 
         preElement.scrollTop = textarea.scrollTop;
         preElement.scrollLeft = textarea.scrollLeft;
+
+        lineNums.scrollTop = textarea.scrollTop;
     }
 
     // Sync the scroll values when the textarea is scrolled
@@ -232,6 +194,9 @@
         syntaxHighlight();
 
         autoComplete(e);
+
+        // Update line numbers
+        currentTab.lineNumbers = currentTab.content.split("\n").length;
     }
 
     /* File functionality */
@@ -271,6 +236,7 @@
             tabs[currentTabID].path = path;
             currentTab.name = path.split("/").pop();
             currentTab.language = typeFromPath(path);
+            currentTab.lineNumbers = res.split("\n").length;
 
             syntaxHighlight();
         });
@@ -410,6 +376,11 @@
                 style:display={ showAutoComplete ? "block": "none" }>
                     <CodeComplete entries={ autoCompleteEntries } on:selectEntry={ autoCompleteSelect } selectedEntry={ autoCompleteIndex }/>
             </div>
+            <div class="linenums" bind:this={ lineNums }>
+                {#each {length: currentTab.lineNumbers} as _, i}
+                    <span>{i}</span>
+                {/each}
+            </div>
         { :else }
             <EmptyState text="No tabs open in this editor!"/>
         { /if }
@@ -420,9 +391,9 @@
         </span>
         <div class="tabsNav">
             {#each tabs as tab, i}
-                <span class="tabControl" class:active={ i == currentTabID }>
-                    <button class="tabName" on:click={ () => { loadTab(i) } }>{ tab.name }
-                    </button><button class="tabClose" on:click={ () => { closeTab(i) } }>x</button>
+                <span class="tabControl" class:active={ i == currentTabID }  on:click={ () => { loadTab(i) } }>
+                    <button class="tabName">{ tab.name }
+                    </button><button class="tabClose" on:click={ (e) => { closeTab(i); e.stopPropagation() } }>x</button>
                 </span>
             {/each}
             <button class="tabAdd" on:click={ () => { openNewTab() } }>+</button>
@@ -431,17 +402,22 @@
 </main>
 
 <style>
+    @import "/fonts/SpaceMono.css";
+    @import "/fonts/Montserrat.css";
+
     main {
         height: 100%;
         width: 100%;
         position: relative;
+
+        font-family: 'Montserrat', sans-serif;
     }
 
     div.details {
-        background: #ddd;
+        background: #f4f4f4;
         line-height: 2em;
 
-        padding: 0 1em;
+        padding: 0.5em 1em;
 
         position: absolute;
         bottom: 0;
@@ -450,7 +426,7 @@
     }
 
     div.tabs {
-        height: calc(100% - 38px);
+        height: calc(100% - 51px);
         width: 100%;
 
         position: relative;
@@ -471,23 +447,27 @@
     div.tabsNav span.tabControl {
         display: inline-block;
 
-        margin: 0;
-        padding: 0.2em 0.5em;
+        margin: 0 0.3em;
+        padding: 0em 0.5em;
+        border-radius: 0.3em;
 
         cursor: pointer;
     }
 
-    div.tabsNav span.tabControl:not(.active):hover {
-        background: #ccc;
+    div.tabsNav span.tabControl:hover, div.tabsNav span.tabControl.active:hover, div.tabsNav button.tabAdd:hover {
+        background: #d7d7d7;
     }
 
-    div.tabsNav span.tabControl.active {
-        background: #bbb;
+    div.tabsNav span.tabControl.active, div.tabsNav button.tabAdd {
+        background: #e3e3e3;
     }
 
     div.tabsNav button {
         border: 0;
         cursor: pointer;
+
+        font-family: 'Montserrat', sans-serif;
+        color: #555;
     }
 
     div.tabsNav button.tabName {
@@ -497,23 +477,22 @@
     }
 
     div.tabsNav span.tabControl button.tabClose {
-        font-size: 0.7em;
-        background: #aaa;
+        font-size: 0.8em;
+        background: none;
 
         position: relative;
         top: -2px;
     }
 
     div.tabsNav span.tabControl button.tabClose:hover {
-        background: #9f9f9f;
+        
     }
 
     div.tabsNav button.tabAdd {
-        margin-left: 0.5em;
-    }
+        margin-left: 0.1em;
+        padding: 0.45em 0.6em;
 
-    div.tabsNav button.tabAdd:hover {
-        background: #b0b0b0;
+        border-radius: 0.3em;
     }
 
     textarea, pre {
@@ -522,9 +501,9 @@
         
         margin: 0;
         padding: 10px;
+        padding-left: 65px;
         border: 0;
-        width: calc(100%);
-        height: calc(100% - 2em);
+        height: calc(100%);
         box-sizing: border-box;
 
         position: absolute;
@@ -535,12 +514,51 @@
         white-space: pre-wrap;
     }
 
+    pre {
+        width: calc(100%  - 10px);
+        overflow: hidden;
+    }
+
+    textarea {
+        width: calc(100%);
+    }
+
     textarea, pre, pre * {
         /* Also add text styles to highlighing tokens */
         font-size: 15px;
-        font-family: monospace;
+        font-family: 'SpaceMono', monospace;
         line-height: 20px;
         tab-size: 2;
+    }
+
+    .linenums {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+
+        max-height: 100%;
+
+        width: 50px;
+        padding: 10px 0;
+        z-index: 3;
+
+        cursor: default;
+
+        background: #fafafa;
+        color: #777;
+
+        overflow: hidden;
+    }
+
+    .linenums span {
+        display: block;
+        font-size: 15px;
+        font-family: 'SpaceMono', monospace;
+        line-height: 20px;
+
+        width: 35px;
+        text-align: right;
     }
 
 

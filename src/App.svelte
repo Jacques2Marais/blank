@@ -40,7 +40,9 @@
 
     .sidebar-container {
         width: 20em;
-        border-right: 1px solid black;
+        border-right: 4px solid #f6f6f6;
+
+        background-color: #f4f4f4;
     }
 
     .edit-view-container {
@@ -69,10 +71,10 @@
     }
 
     .column-divider > div:not(:last-child) {
-        border-bottom: 1px solid black;
+        border-bottom: 4px solid #f6f6f6;
     }
 
     .row-divider > div:not(:last-child) {
-        border-right: 1px solid black;
+        border-right: 4px solid #f6f6f6;
     }
 </style>

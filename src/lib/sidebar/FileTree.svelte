@@ -46,6 +46,8 @@
     #fileTree {
         overflow: auto;
         max-height: 100%;
+        
+        padding: 1em;
     }
 
     ul {

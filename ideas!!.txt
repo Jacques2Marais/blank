@@ -1,0 +1,9 @@
+- right hand scroll based on element id's/css selectors/js functions
+- integrated todo list (priority-based)
+- quick switch between projects
+- auto organize files and their dependencies. e.g. html file dependent on two css files and one js file: display in auto-organized way to user
+- give categories to sections of css and/or html for quick navigation
+- give tags to certain elements or css blocks for quick navigation
+- translate between frameworks e.g. svelte, angular, react
+- extract as component
+- start with Svelte tools (create external api for plugin-like use and use this to make tools for frameworks)

@@ -46,8 +46,13 @@
 </script>
 
 <li>
-    <span on:click={ toggle }>
-        <span class="toggleOpenIcon" class:down={ directoryVisible }>&#8227;</span>
+    <span on:click={ toggle } class="directoryName">
+        <!--span class="toggleOpenIcon" class:down={ directoryVisible }>&#8227;</span-->
+        {#if directoryVisible}
+            <span class="material-symbols-outlined icon">folder_open</span>
+        {:else}
+            <span class="material-symbols-outlined icon">folder</span>
+        {/if}
         { directoryName }
     </span>
     <ul>
@@ -55,7 +60,14 @@
             { #if file.endsWith("/") }
                 <DirectoryView directory={ file } />
             {:else}
-                <li><span on:click={ () => { fileClick(file) } }>{ file.split("/").pop() }</span></li>
+                <li>
+                    <span on:click={ () => { fileClick(file) } }>
+                        <span class="material-symbols-outlined icon">
+                            description
+                        </span>
+                        { file.split("/").pop() }
+                    </span>
+                </li>
             {/if}
         {/each}
     </ul>
@@ -63,7 +75,7 @@
 
 <style>
     ul {
-        padding: 0 0 0 1.5em;
+        padding: 0 0 0 1em;
     }
 
     li {
@@ -78,10 +90,10 @@
         display: inline-block;
     }
 
-    span:not(.toggleOpenIcon) {
+    span:not(.icon) {
         width: 100%;
 
-        padding: 0.25em;
+        padding: 0.4em;
         box-sizing: border-box;
     }
 
@@ -89,17 +101,13 @@
         background-color: #eee;
     }
 
-    span.toggleOpenIcon {
-        transform: rotate(0deg);
-        transition: transform 0.15s;
-
+    .icon {
+        color: #333;
         font-size: 1.2em;
 
         position: relative;
-        top: 1px;
-    }
+        top: 2.5px;
 
-    span.toggleOpenIcon.down {
-        transform: rotate(90deg);
+        margin-right: 0.2em;
     }
 </style>

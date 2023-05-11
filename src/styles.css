@@ -1,3 +1,7 @@
+* {
+    font-variant-ligatures: none;
+}
+
 body {
     margin: 0;
 }

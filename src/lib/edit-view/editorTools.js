@@ -292,8 +292,6 @@ export const editorTools = {
 
     // HTML language editor tools
     HTMLTyping(textarea, event) {
-        console.log("TYPETYPE");
-
         // Get the current cursor position
         const cursorPosition = textarea.selectionEnd;
 
@@ -377,9 +375,16 @@ export const editorTools = {
             if (this.HTMLContext.isAtLineStart) {
                 this.HTMLContext.tabDepth++;
             }
+
+            this.triggerInputEvent(textarea);
         } else if (event.key == '"' || event.key == "'") {
             // Auto close quote pairs
             this.insertAtCursor(textarea, cursorPosition, event.key);
+        } else if (event.key == "Backspace") {
+            // Remove tab if at line start
+            if (this.HTMLContext.isAtLineStart) {
+                this.HTMLContext.tabDepth--;
+            }
         }
 
         if (event.key != "Enter" && event.key != "Tab") {
@@ -445,6 +450,16 @@ export const editorTools = {
         return true;
     },
 
+    // Is in an opening tag?
+    inOpeningTag(textarea, position) {
+        if (textarea.value.lastIndexOf("<", position - 1) > textarea.value.lastIndexOf(">", position - 1)
+        && textarea.value.lastIndexOf("<", position - 1) > textarea.value.lastIndexOf("/", position - 1)) {
+            return true;
+        }
+
+        return false;
+    },
+
     /* Tools */
     HTMLCaret(textarea, value, position) {
         // If the caret is inside an empty element body, set the HTML context
@@ -461,6 +476,15 @@ export const editorTools = {
         // If at the start of a line, set the HTML context
         if (this.isAtLineStart(textarea, position)) {
             this.HTMLContext.isAtLineStart = true;
+        }
+
+        // If the caret is inside an opening tag, set the HTML context
+        if (this.inOpeningTag(textarea, position)) {
+            console.log("in opening tag");
+            this.HTMLContext.inOpeningTag = true;
+        } else {
+            console.log("not in opening tag");
+            this.HTMLContext.inOpeningTag = false;
         }
     },
 
