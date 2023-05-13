@@ -1,5 +1,5 @@
 # Blank
-A work-in-progress attempt at building an IDE focused on front-end development using Rust (Tauri) and Svelte.
+A work-in-progress attempt at building a code editor focused on front-end development using Rust, Svelte and Tauri.
 
 ## Setup
 To setup and run the project: clone, change directory into base folder and then
