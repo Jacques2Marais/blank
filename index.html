@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -23,6 +23,10 @@
 
         h4 {
             margin-bottom: 0.6em !important;
+        }
+
+        nav {
+            margin-bottom: 3em;
         }
 
         #what > .grid > div {
@@ -53,11 +57,23 @@
     </style>
 
     <!-- Highlight.js -->
-    <link rel="stylesheet" href="github-dark.min.css">
+    <link rel="stylesheet" href="res/github-dark.min.css" id="darkcss">
+    <link rel="stylesheet" href="res/github-light.min.css" id="lightcss">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+
+    <link rel="stylesheet" href="res/dark-toggle.css">
 </head>
 <body>
     <main class="container">
+        <div class="theme-toggle">
+            <label for="checkbox" class="toggle">
+                <input type="checkbox" class="checkbox" id="checkbox" />
+                <div class="slider">
+                    <div class="moon"></div>
+                    <div class="sun"></div>
+                </div>
+            </label>
+        </div>
         <nav>
             <ul>
                 <li>
@@ -108,6 +124,38 @@ $ npm run tauri dev</code></pre>
 
     <script>
         hljs.highlightAll();
+
+        const switchButton = document.getElementById("checkbox");
+        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        let theme = localStorage.getItem("theme") ? localStorage.getItem("theme") : (prefersDarkScheme ? "dark" : "light");
+        const checkbox = document.getElementById("checkbox");
+        const htmlElm = document.getElementsByTagName("html")[0];
+
+        window.addEventListener('DOMContentLoaded', () => setTheme(theme));
+
+        switchButton.addEventListener("click", () => toggleTheme());
+
+        function toggleTheme() {
+            theme = theme === "light" ? "dark" : "light";
+            localStorage.setItem("theme", theme);
+            setTheme(theme);
+        }
+
+        function setTheme(mode) {
+            if (mode === 'light') {
+                htmlElm.dataset.theme = "light";
+                checkbox.checked = true;
+
+                lightcss.disabled = false;
+                darkcss.disabled = true;
+            } else {
+                htmlElm.dataset.theme = "dark";
+                checkbox.checked = false;
+
+                lightcss.disabled = true;
+                darkcss.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
