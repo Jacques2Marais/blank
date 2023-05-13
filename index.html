@@ -1,24 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blank</title>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blank - The front-end IDE built with Svelte and Rust (Tauri).</title>
 
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <!-- Pico.css -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+
     <style>
-      .material-symbols-outlined {
-        font-variation-settings:
-        'FILL' 1,
-        'wght' 400,
-        'GRAD' 0,
-        'opsz' 48
-      }
-    </style>
-  </head>
+        :root {
+            --primary: #00897b;
+        }
 
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+        p {
+            opacity: 0.8;
+            font-size: 18px;
+
+            margin-bottom: 0.6em !important;
+        }
+
+        h4 {
+            margin-bottom: 0.6em !important;
+        }
+
+        #what > .grid > div {
+            height: 100%;
+            padding: 2em;
+
+            border-radius: var(--border-radius);
+            background: var(--code-background-color);
+        }
+
+        #what > .grid > div > p {
+            font-size: 18px;
+            opacity: 0.9;
+
+            margin-bottom: 0;
+        }
+
+        #nav > li > a:not([role="button"]) {
+            color: var(--contrast);
+            opacity: 0.8;
+
+            transition: opacity 0.2s ease-in-out;
+        }
+
+        #nav > li > a:not([role="button"]):hover {
+            opacity: 1;
+        }
+    </style>
+
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+</head>
+<body>
+    <main class="container">
+        <nav>
+            <ul>
+                <li>
+                    <hgroup>
+                        <h2>Blank</h2>
+                        <h3>An IDE for the front-end.</h3>
+                    </hgroup>
+                </li>
+            </ul>
+            <ul id="nav">
+                <li><a href="#setup">Setup</a></li>
+                <li><a href="https://github.com/Jacques2Marais/blank" role="button" class="secondary">Github</a></li>
+            </ul>
+        </nav>
+        <section id="what">
+            <h4>What is Blank?</h4>
+            <div class="grid">
+                <div>
+                    <strong>Code Editor</strong>
+                    <p>
+                        Blank is a code editor and ships with everything needed to write code efficiently.
+                    </p>
+                </div>
+                <div>
+                    <strong>Built for Front-End</strong>
+                    <p>
+                        Blank's main focus is front-end development, and for now web front-end development.
+                    </p>
+                </div>
+                <div>
+                    <strong>Built with Front-End</strong>
+                    <p>
+                        Blank is mainly written in Svelte and uses Tauri as an interface between web and desktop.
+                    </p>
+                </div>
+            </div>
+        </section>
+        <section>
+            <h4>Setup</h4>
+            <p>
+                To get started with Blank, you need to have Node.js, Rust and Tauri installed. Then you can follow the steps below.
+            </p>
+            <pre><code class="language-shell">$ cd path/to/blank
+$ npm install
+$ npm run tauri dev</code></pre>
+        </section>
+    </main>
+
+    <script>
+        hljs.highlightAll();
+    </script>
+</body>
 </html>
