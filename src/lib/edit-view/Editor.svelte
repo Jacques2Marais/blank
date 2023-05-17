@@ -34,7 +34,8 @@
             language: "HTML",
             syntaxHighlighted: "",
             path: "",
-            lineNumbers: 0
+            lineNumbers: 0,
+            saved: false
         }
     ];
 
@@ -104,7 +105,8 @@
             language: "Text",
             syntaxHighlighted: "",
             path: "",
-            lineNumbers: 0
+            lineNumbers: 0,
+            saved: false
         });
 
         currentTabID = tabs.length - 1;
@@ -120,7 +122,6 @@
     // Open file in new tab
     export function openInNewTab(file = "") {
         let tab = tabExists(file);
-        console.log("Tab:", tab);
         if (tab > -1) {
             loadTab(tab);
             return;
@@ -156,6 +157,10 @@
     // Syntax highlight the code and sync the scroll values
     // TODO: split syntax highlighting into chunks (e.g. lines or blocks) to prevent lag
     function syntaxHighlight() {
+        if (!currentTab) {
+            return;
+        }
+
         if (tabs[currentTabID].language == "Text") {
             tabs[currentTabID].syntaxHighlighted = escapeHTML(tabs[currentTabID].content);
             setTimeout(scrollSync);
@@ -187,6 +192,31 @@
         lineNums.scrollTop = textarea.scrollTop;
     }
 
+    let lineNumbers = [];
+
+    // Update the current line numbers with word wrapping
+    function getCurrentLineCount() {
+        lineNumbers = [];
+        const lines = currentTab.content.split("\n");
+        let currentNum = 1;
+        let currentLine = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+                lineNumbers[currentLine] = "" + currentNum;
+                currentLine += 1;
+                const numLines = Math.floor(lines[i].length / 80);
+
+                for (let j = 0; j < numLines; j++) {
+                    lineNumbers[currentLine] = " ";
+                    currentLine += 1;
+                }
+
+            currentNum++;
+        }
+
+        console.log(lineNumbers);
+    }
+
     // Sync the scroll values when the textarea is scrolled
     function textareaChange(e) {
         scrollSync();
@@ -196,7 +226,10 @@
         autoComplete(e);
 
         // Update line numbers
-        currentTab.lineNumbers = currentTab.content.split("\n").length;
+        getCurrentLineCount();
+
+        // Tab is no longer saved
+        currentTab.saved = false;
     }
 
     /* File functionality */
@@ -221,15 +254,19 @@
                     currentTab.name = res.split("/").pop();
                     currentTab.language = typeFromPath(res);
                     invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
+
+                    currentTab.saved = true;
                 }
             });
         } else {
             // if path is set, save file to that path
             invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
+
+            currentTab.saved = true;
         }
     }
 
-    // Load file in current tab
+    // Load file in new tab
     function loadFile(path) {
         invoke("load_file", { path }).then((res) => {
             tabs[currentTabID].content = res;
@@ -237,8 +274,10 @@
             currentTab.name = path.split("/").pop();
             currentTab.language = typeFromPath(path);
             currentTab.lineNumbers = res.split("\n").length;
+            currentTab.saved = true;
 
             syntaxHighlight();
+            getCurrentLineCount();
         });
     }
 
@@ -272,8 +311,13 @@
             || event.key == "ArrowLeft" || event.key == "ArrowRight"
             || event.key == "Home" || event.key == "End"
             || event.key == "PageUp" || event.key == "PageDown"
-            || event.key == "Backspace" || event.key == "Delete") {
-                caretMove();
+            || event.key == "Backspace" || event.key == "Delete") 
+        {
+            // Arrow keys, home, end, page up/down, backspace, and delete change caret position
+            caretMove();
+        } else if (event.key == "s" && event.ctrlKey) {
+            // Ctrl + S to save
+            saveFile();
         }
     }
 
@@ -377,8 +421,8 @@
                     <CodeComplete entries={ autoCompleteEntries } on:selectEntry={ autoCompleteSelect } selectedEntry={ autoCompleteIndex }/>
             </div>
             <div class="linenums" bind:this={ lineNums }>
-                {#each {length: currentTab.lineNumbers} as _, i}
-                    <span>{i}</span>
+                {#each lineNumbers as number, i}
+                    <span>{number}</span>
                 {/each}
             </div>
         { :else }
@@ -386,13 +430,15 @@
         { /if }
     </div>
     <div class="details">
+        {#if currentTab}
         <span class="tabLanguage">
-            { tabs[currentTabID].language }
+            { currentTab.language }
         </span>
+        {/if}
         <div class="tabsNav">
             {#each tabs as tab, i}
                 <span class="tabControl" class:active={ i == currentTabID }  on:click={ () => { loadTab(i) } }>
-                    <button class="tabName">{ tab.name }
+                    <button class="tabName">{#if tab.saved}{ tab.name }{:else}{ tab.name }<span class="unsaved">*</span>{/if}
                     </button><button class="tabClose" on:click={ (e) => { closeTab(i); e.stopPropagation() } }>x</button>
                 </span>
             {/each}
@@ -467,13 +513,24 @@
         cursor: pointer;
 
         font-family: 'Montserrat', sans-serif;
+        font-weight: 400;
         color: #555;
+
+        position: relative;
     }
 
     div.tabsNav button.tabName {
         background: transparent;
         margin: 0;
         padding: 0 0.4em;
+        padding-left: 0.8em;
+    }
+
+    div.tabsNav button span.unsaved {
+        color: #999;
+        position: absolute;
+        top: 3px;
+        left: 0px;
     }
 
     div.tabsNav span.tabControl button.tabClose {
@@ -482,10 +539,17 @@
 
         position: relative;
         top: -2px;
+        padding: 0em 0.15em;
     }
 
-    div.tabsNav span.tabControl button.tabClose:hover {
-        
+    div.tabsNav span.tabControl button.tabClose:hover::before {
+        content: "x";
+        position: absolute;
+        left: 0;
+        right: 0;
+
+        background: #ccc;
+        border-radius: 0.3em;
     }
 
     div.tabsNav button.tabAdd {
@@ -500,7 +564,7 @@
         display: block;
         
         margin: 0;
-        padding: 10px;
+        padding: 10px 15px;
         padding-left: 65px;
         border: 0;
         height: calc(100%);
@@ -515,7 +579,7 @@
     }
 
     pre {
-        width: calc(100%  - 10px);
+        width: calc(100%);
         overflow: hidden;
     }
 
@@ -556,6 +620,7 @@
         font-size: 15px;
         font-family: 'SpaceMono', monospace;
         line-height: 20px;
+        height: 20px;
 
         width: 35px;
         text-align: right;
@@ -581,6 +646,11 @@
 
     pre {
         z-index: 0;
+    }
+
+    pre * {
+        white-space: pre-wrap;
+        word-wrap: break-word;
     }
 
     /* Autocomplete */
