@@ -107,6 +107,11 @@ fn inline_html(file: &str) -> String {
         let src = script.attributes().get("src").unwrap().unwrap().try_as_utf8_str().unwrap();
         let abs_src = absolutize(src, file_dir.to_str().unwrap());
 
+        // Does the file exist?
+        if !Path::new(&abs_src).exists() {
+            continue;
+        }
+
         let contents = fs::read_to_string(abs_src.clone()).unwrap();
         let re = Regex::new(&format!(r#"<script (.*)src="{}"(.*)></script>"#, src)).unwrap();
 
@@ -120,6 +125,12 @@ fn inline_html(file: &str) -> String {
         let link = link.get(parser).unwrap().as_tag().unwrap();
         let href = link.attributes().get("href").unwrap().unwrap().try_as_utf8_str().unwrap();
         let abs_href = absolutize(href, file_dir.to_str().unwrap());
+
+        // Does the file exist?
+        if !Path::new(&abs_href).exists() {
+            continue;
+        }
+
         let contents = fs::read_to_string(abs_href.clone()).unwrap();
         let re = Regex::new(&format!(r#"<link (.*)href="{}"(.*)/?>(</link>)?"#, href)).unwrap();
         new_html = re.replace(&new_html, &format!(r#"<style>{}</style>"#, contents)).to_string();

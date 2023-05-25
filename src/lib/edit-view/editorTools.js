@@ -1,4 +1,4 @@
-import { HTMLCompletions } from "../utilities/autoCompleteData";
+import { HTMLCompletions, CSSCompletions } from "../utilities/autoCompleteData";
 
 export const editorTools = {
     /* Hover Utilities */
@@ -80,17 +80,30 @@ export const editorTools = {
 
     // Check whether given element is a tag name
     isTagName(element) {
+        if (element == null) {
+            return false;
+        }
+
         return element.classList.contains("blank-editor-name");
+    },
+
+    // Check whether given element is a self-closing tag
+    isSelfClosingTag(element) {
+        if (element == null) {
+            return false;
+        }
+
+        return this.isTagName(element) && this.getNextElementWithClass(element, "blank-editor-end").textContent.endsWith("/>");
     },
 
     // Check whether a given element represents the start of a tag
     isEndTag(element) {
-        return this.isTagName(element) && element.previousElementSibling && element.previousElementSibling.textContent == "</";
+        return !this.isSelfClosingTag(element) && this.isTagName(element) && element.previousElementSibling && element.previousElementSibling.textContent == "</";
     },
 
     // Check whether a given element represents the end of a tag
     isStartTag(element) {
-        return this.isTagName(element) && !this.isEndTag(element);
+        return this.isTagName(element) && !this.isEndTag(element) && !this.isSelfClosingTag(element);
     },
 
     // Get the corresponding start/end tag of a given tag
@@ -165,8 +178,16 @@ export const editorTools = {
     prevElement: null,
 
     /* Hover tools for different languages */
+    generalHover(element, language) {
+        if (language == "HTML") {
+            this.HTMLHover(element);
+        } else if (language == "CSS") {
+            //this.CSSHover(element);
+        }
+    },
+
     // HTML language editor tools
-    HTML(element) {
+    HTMLHover(element) {
         // If the element is null, reset and return
         if (element == null) {
             this.resetHTML();
@@ -237,7 +258,7 @@ export const editorTools = {
     getTabDepthString(extraTabs = 0) {
         let tabDepthString = "";
 
-        for (let i = 0; i < this.HTMLContext.tabDepth + extraTabs; i++) {
+        for (let i = 0; i < this.generalContext.tabDepth + extraTabs; i++) {
             tabDepthString += "\t";
         }
 
@@ -261,7 +282,52 @@ export const editorTools = {
         this.prevElement = null;
     },
 
+    autoIndent(textarea, event) {
+        // Get cursor position
+        const cursorPosition = textarea.selectionEnd;
+
+        // Insert newline
+        this.insertAtCursor(textarea, cursorPosition, "\n", "end");
+
+        // Insert tabs
+        const tabDepthString = this.getTabDepthString();
+        this.insertAtCursor(textarea, cursorPosition + 1, tabDepthString, "end");
+
+        // Prevent default newline, but trigger input event for syntax highlighting
+        event.preventDefault();
+        this.triggerInputEvent(textarea);
+    },
+
+    autoIndentNewLine(textarea, event) {
+        // Get cursor position
+        const cursorPosition = textarea.selectionEnd;
+
+        this.generalContext.tabDepth++;
+        const tabDepthString = this.getTabDepthString();
+        const closingTabDepthString = this.getTabDepthString(-1);
+        const moveCursorBy = tabDepthString.length + 1;
+
+        const stringToInsert = `\n${tabDepthString}\n${closingTabDepthString}`;
+
+        // Insert tabs
+        this.insertAtCursor(textarea, cursorPosition, stringToInsert, "begin");
+        this.moveCursor(textarea, cursorPosition, moveCursorBy);
+
+        // Prevent default newline, but trigger input event for syntax highlighting
+        event.preventDefault();
+        this.triggerInputEvent(textarea);
+    },
+
     /* Typing tools for specific languages */
+    // CONTEXTS
+    generalContext: {
+        // Tab depth
+        tabDepth: 0,
+
+        // Is at the start of a newline?
+        isAtLineStart: false,
+    },
+
     HTMLContext: {
         // Is the cursor inside an opening tag?
         inOpeningTag: false,
@@ -278,17 +344,36 @@ export const editorTools = {
         // Is inside an empty element?
         inEmptyElementBody : false,
 
-        // Tab depth
-        tabDepth: 0,
-
-        // Is at the start of a newline?
-        isAtLineStart: false,
-
         // Is inside of a pair of empty quotes? 
         isInsideEmptyQuotes: ""
     },
 
+    // FUNCTIONS
+    typing(textarea, event, language) {
+        // Get the current cursor position
+        const cursorPosition = textarea.selectionEnd;
 
+        if (event.key == "Tab") {
+            // Prevent default tab
+            event.preventDefault();
+
+            // Insert tab
+            this.insertAtCursor(textarea, cursorPosition, "\t");
+            this.moveCursor(textarea, cursorPosition, 1);
+
+            if (this.generalContext.isAtLineStart) {
+                this.generalContext.tabDepth++;
+            }
+
+            this.triggerInputEvent(textarea);
+        }
+
+        if (language == "HTML") {
+            return this.HTMLTyping(textarea, event);
+        } else if (language == "CSS") {
+            return this.CSSTyping(textarea, event);
+        }
+    },
 
     // HTML language editor tools
     HTMLTyping(textarea, event) {
@@ -301,8 +386,6 @@ export const editorTools = {
                 if (this.HTMLContext.currentTagName.length == 0) {
                     // Set tag name
                     this.HTMLContext.currentTagName = this.getCurrentTagName(textarea, cursorPosition);
-
-                    console.log(textarea.value[cursorPosition]);
                 }
 
                 // Insert closing tag after cursor if the cursor was in a 
@@ -333,67 +416,97 @@ export const editorTools = {
             }
         } else if (event.key == "Enter") {
             if (this.HTMLContext.inEmptyElementBody) {
-                this.HTMLContext.tabDepth++;
-                const tabDepthString = this.getTabDepthString();
-                const closingTabDepthString = this.getTabDepthString(-1);
-                const moveCursorBy = tabDepthString.length + 1;
-
-                const stringToInsert = `\n${tabDepthString}\n${closingTabDepthString}`;
-
-                // Insert tabs
-                this.insertAtCursor(textarea, cursorPosition, stringToInsert, "begin");
-                this.moveCursor(textarea, cursorPosition, moveCursorBy);
-
-                // Prevent default newline, but trigger input event for syntax highlighting
-                event.preventDefault();
-                this.triggerInputEvent(textarea);
+                this.autoIndentNewLine(textarea, event);
 
                 // Set context
                 this.HTMLContext.inEmptyElementBody = false;
             } else {
-                // Insert newline
-                this.insertAtCursor(textarea, cursorPosition, "\n", "end");
-
-                // Insert tabs
-                const tabDepthString = this.getTabDepthString();
-                this.insertAtCursor(textarea, cursorPosition + 1, tabDepthString, "end");
-
-                // Prevent default newline, but trigger input event for syntax highlighting
-                event.preventDefault();
-                this.triggerInputEvent(textarea);
+                this.autoIndent(textarea, event);
             }
 
             // Set context
-            this.HTMLContext.isAtLineStart = true;
-        } else if (event.key == "Tab") {
-            event.preventDefault();
-
-            // Insert tab
-            this.insertAtCursor(textarea, cursorPosition, "\t");
-            this.moveCursor(textarea, cursorPosition, 1);
-
-            if (this.HTMLContext.isAtLineStart) {
-                this.HTMLContext.tabDepth++;
-            }
-
-            this.triggerInputEvent(textarea);
+            this.generalContext.isAtLineStart = true;
         } else if (event.key == '"' || event.key == "'") {
             // Auto close quote pairs
             this.insertAtCursor(textarea, cursorPosition, event.key);
         } else if (event.key == "Backspace") {
             // Remove tab if at line start
-            if (this.HTMLContext.isAtLineStart) {
-                this.HTMLContext.tabDepth--;
+            if (this.generalContext.isAtLineStart) {
+                this.generalContext.tabDepth--;
             }
         }
 
         if (event.key != "Enter" && event.key != "Tab") {
-            this.HTMLContext.isAtLineStart = false;
+            this.generalContext.isAtLineStart = false;
         }
 
         // Ensure it is a self-closing tag and not a random "/"
         if (this.HTMLContext.inSelfClosingTag && event.key != ">" && event.key != "/") {
             this.HTMLContext.inSelfClosingTag = false;
+        }
+    },
+
+    CSSContext: {
+        // Is the cursor inside a CSS property?
+        inProperty: false,
+
+        // Is the cursor inside a CSS value?
+        inValue: false,
+
+        // Is the cursor inside a CSS block?
+        inBlock: false,
+
+        // Is the cursor inside a CSS empty block?
+        inEmptyBlock: false,
+
+        // Current property name
+        currentPropertyName: "",
+    },
+
+    // CSS language editor tools
+    CSSTyping(textarea, event) {
+        // Get the current cursor position
+        const cursorPosition = textarea.selectionEnd;
+
+        // Auto close brackets
+        if (event.key == "{") {
+            // Insert closing bracket after cursor if the cursor was in an opening bracket
+            this.insertAtCursor(textarea, cursorPosition, "}");
+
+            // Set context
+            if (!this.CSSContext.inBlock) {
+                this.CSSContext.inBlock = true;
+                this.CSSContext.inEmptyBlock = true;
+                this.CSSContext.inProperty = false;
+                this.CSSContext.inValue = false;
+            }
+        } else if (event.key == "}") {
+            // Set context
+            this.CSSContext.inBlock = false;
+            this.CSSContext.inProperty = false;
+            this.CSSContext.inValue = false;
+        } else if (event.key == ":") {
+            // Set context
+            this.CSSContext.inProperty = false;
+            this.CSSContext.inValue = true;
+
+            // Get name of property
+            this.CSSContext.currentPropertyName = this.getMatchingBeforeCursor(textarea, cursorPosition, /[\w-]+/);
+        } else if (event.key == ";") {
+            // Set context
+            this.CSSContext.inValue = false;
+        } else if (event.key == "Enter") {
+            if (this.CSSContext.inEmptyBlock) {
+                this.autoIndentNewLine(textarea, event);
+
+                // Set context
+                this.CSSContext.inEmptyBlock = false;
+            } else {
+                this.autoIndent(textarea, event);
+            }
+        } else if (/[a-zA-Z]/.test(event.key) && this.CSSContext.inBlock && !this.CSSContext.inProperty && !this.CSSContext.inValue) {
+            // Set context
+            this.CSSContext.inProperty = true;
         }
     },
 
@@ -450,41 +563,78 @@ export const editorTools = {
         return true;
     },
 
+    // Is in a pair of opening/closing delimiters?
+    inDelimiters(textarea, position, openingDelimiter, closingDelimiter) {
+        return textarea.value.lastIndexOf(openingDelimiter, position - 1) > textarea.value.lastIndexOf(closingDelimiter, position - 1)
+            && textarea.value.lastIndexOf(openingDelimiter, position - 1) < textarea.value.indexOf(closingDelimiter, position - 1);
+    },
+
     // Is in an opening tag?
     inOpeningTag(textarea, position) {
-        if (textarea.value.lastIndexOf("<", position - 1) > textarea.value.lastIndexOf(">", position - 1)
-        && textarea.value.lastIndexOf("<", position - 1) > textarea.value.lastIndexOf("/", position - 1)) {
+        if (this.inDelimiters(textarea, position, "<", ">") && this.getSurroundingCharacters(textarea, position, 2) != "</" && !this.inDelimiters(textarea, position, "</", ">")) {
             return true;
         }
 
         return false;
     },
 
+    cssPropertyName(textarea, position) {
+        const colonIndex = textarea.value.lastIndexOf(":", position - 1);
+
+        return this.getMatchingBeforeCursor(textarea, colonIndex, /[\w-]+/);
+    },
+
     /* Tools */
+    generalCaret(textarea, value, position, language) {
+        // Set the tab depth accordingly
+        this.generalContext.tabDepth = this.getLineTabDepth(textarea, position);
+
+        // If at the start of a line, set the context
+        if (this.isAtLineStart(textarea, position)) {
+            this.generalContext.isAtLineStart = true;
+        }
+
+        if (language == "HTML") {
+            this.HTMLCaret(textarea, value, position);
+        } else if (language == "CSS") {
+            this.CSSCaret(textarea, value, position);
+        }
+    },
+
     HTMLCaret(textarea, value, position) {
         // If the caret is inside an empty element body, set the HTML context
         if (this.getSurroundingCharacters(textarea, position, 1, 2) == "></") {
             this.HTMLContext.inEmptyElementBody = true;
-            console.log(this.getSurroundingCharacters(textarea, position, 1, 2));
         } else {
             this.HTMLContext.inEmptyElementBody = false;
         }
 
-        // Set the tab depth accordingly
-        this.HTMLContext.tabDepth = this.getLineTabDepth(textarea, position);
-
-        // If at the start of a line, set the HTML context
-        if (this.isAtLineStart(textarea, position)) {
-            this.HTMLContext.isAtLineStart = true;
-        }
-
         // If the caret is inside an opening tag, set the HTML context
         if (this.inOpeningTag(textarea, position)) {
-            console.log("in opening tag");
             this.HTMLContext.inOpeningTag = true;
         } else {
-            console.log("not in opening tag");
             this.HTMLContext.inOpeningTag = false;
+        }
+    },
+
+    CSSCaret(textarea, value, position) {
+        // If the caret is inside a CSS block, set the CSS context
+        if (this.inDelimiters(textarea, position, "{", "}")) {
+            this.CSSContext.inBlock = true;
+        } else {
+            this.CSSContext.inBlock = false;
+        }
+
+        // If the caret is inside a CSS value, set the CSS context
+        if (this.inDelimiters(textarea, position, ":", ";")) {
+            this.CSSContext.inValue = true;
+            this.CSSContext.inProperty = false;
+
+            // Get name of property
+            this.CSSContext.currentPropertyName = this.cssPropertyName(textarea, position);
+        } else if (this.getMatchingBeforeCursor(textarea, position, /[\w-]+/).length > 0) {
+            this.CSSContext.inValue = false;
+            this.CSSContext.inProperty = true;
         }
     },
 
@@ -503,22 +653,39 @@ export const editorTools = {
         return keys;
     },
 
-    // HTML
-    HTMLWords: {
-        tags: {
-            
-        },
-        attributes: [
-            "id",
-            "class",
-            "style"
-        ]
+    arrayValuesStartingWith(array, string) {
+        let values = [];
+
+        for (let value of array) {
+            if (value.startsWith(string)) {
+                values.push(value);
+            }
+        }
+
+        return values;
     },
 
-    
+    getMatchingBeforeCursor(textarea, position, regex) {
+        let matching = "";
 
-    HTMLAutoComplete(event) {
-        if (!/[a-zA-Z_\-]/.test(event.data)) {
+        for (let i = position - 1; i >= 0; i--) {
+            if (regex.test(textarea.value[i])) {
+                matching = textarea.value[i] + matching;
+            } else {
+                break;
+            }
+        }
+        
+        return matching;
+    },
+
+    validAutoCompleteChars: {
+        HTML: /[a-zA-Z_\-]/,
+        CSS: /[a-zA-Z_\-\#]/
+    },
+
+    autoComplete(event, language) {
+        if (!this.validAutoCompleteChars[language].test(event.data)) {
             this.currentWord = "";
 
             return [];
@@ -528,25 +695,141 @@ export const editorTools = {
             if (this.currentWord == "") {
                 return [];
             }
+        } else if (event.data == null && typeof event.data == "undefined") {
+            this.currentWord = "";
+
+            return [];
         } else {
             this.currentWord += event.data;
         }
 
+        if (language == "HTML") {
+            return this.HTMLAutoComplete(event);
+        } else if (language == "CSS") {
+            return this.CSSAutoComplete(event);
+        }
+    },
+
+    HTMLAutoComplete(event) {
         if (this.HTMLContext.inOpeningTag && this.HTMLContext.currentTagName == "") {
             return this.objectKeysStartingWith(HTMLCompletions.tagsWithAttributes, this.currentWord);
         } else if (this.HTMLContext.inOpeningTag && this.HTMLContext.currentTagName != "") {
             let attributes = [];
-            console.log(HTMLCompletions.tagsWithAttributes[this.HTMLContext.currentTagName]);
 
             attributes = HTMLCompletions.tagsWithAttributes[this.HTMLContext.currentTagName];
             attributes = attributes.concat(HTMLCompletions.globalAttributes);
-
-            console.log(attributes);
 
             return attributes.filter(attribute => attribute.startsWith(this.currentWord))
                 .sort((a, b) => a.localeCompare(b));
         }
 
         return [];
+    },
+
+    CSSAutoComplete(event) {
+        if (this.CSSContext.inBlock && this.CSSContext.inProperty) {
+            return this.objectKeysStartingWith(CSSCompletions, this.currentWord);
+        } else if (this.CSSContext.inBlock && this.CSSContext.inValue) {
+            return this.arrayValuesStartingWith(CSSCompletions[this.CSSContext.currentPropertyName].values, this.currentWord);
+        }
+
+        return [];
+    },
+
+    /* Inline Toolbar */
+    hasAttribute(textarea, position, attribute) {
+        const openingTagIndex = textarea.value.lastIndexOf("<", position - 1);
+
+        if (this.HTMLContext.inOpeningTag) {
+            const attributeIndex = textarea.value.lastIndexOf(" " + attribute + "=", position - 1);
+
+            if (attributeIndex > openingTagIndex) {
+                return true;
+            }
+        }
+
+        return false;
+    },
+
+    addAttribute(textarea, position, attribute, noValue = false) {
+        const openingTagIndex = textarea.value.lastIndexOf("<", position - 1);
+
+        if (this.HTMLContext.inOpeningTag) {
+            const attributeIndex = textarea.value.lastIndexOf(" " + attribute + "=", position - 1);
+
+            if (attributeIndex > openingTagIndex) {
+                return attributeIndex + 1;
+            }
+        }
+
+        const closingTagIndex = textarea.value.indexOf(">", openingTagIndex);
+        let attributeString = " " + attribute;
+
+        if (!noValue) {
+            attributeString += "=\"\"";
+        }
+
+        textarea.value = textarea.value.slice(0, closingTagIndex) + attributeString + textarea.value.slice(closingTagIndex);
+
+        return closingTagIndex + attributeString.length - (noValue ? 1 : 0);
+    },
+
+    addClass(textarea, position, className) {
+        const classAttributeIndex = this.addAttribute(textarea, position, "class");
+
+        textarea.value = textarea.value.slice(0, classAttributeIndex - 1) + className + textarea.value.slice(classAttributeIndex - 1);
+    },
+
+    xyFromIndex(textarea, index) {
+        const lines = textarea.value.slice(0, index).split("\n");
+
+        const span = document.createElement("span");
+        span.style.font = window.getComputedStyle(textarea).font;
+        span.style.visibility = "hidden";
+        document.body.appendChild(span);
+
+        span.textContent = "a";
+
+        const charWidth = span.getBoundingClientRect().width;
+        const lineHeight = span.getBoundingClientRect().height;
+        
+        return {
+            x: lines[lines.length - 1].length * charWidth + 60, // 47 is the padding
+            y: (lines.length) * lineHeight + 12 // 10 is the padding
+        };
+    },
+
+    generalToolbar(language, textarea, value, position) {
+        if (language == "HTML") {
+            return this.HTMLToolbar(textarea, value, position);
+        } else if (language == "CSS") {
+            return this.CSSToolbar();
+        }
+    },
+
+    HTMLToolbar(textarea, value, position) {
+        if (this.HTMLContext.inOpeningTag) {
+            const tagStartPosition = textarea.value.lastIndexOf("<", position - 1);
+            const xy = this.xyFromIndex(textarea, tagStartPosition);
+
+            console.log(xy);
+            
+            return [true, [
+                {
+                    // Add class to HTML element
+                    type: "button",
+                    text: ".",
+                    action() {
+                        const className = prompt("Class name:");
+
+                        if (className != null) {
+                            this.addClass(textarea, position, className);
+                        }
+                    },
+                }
+            ], xy];
+        }
+
+        return [false, [], {x: 0, y: 0}];
     }
 }

@@ -10,6 +10,7 @@
     import { getCaretCoordinates } from "../utilities/getCaretPosition";
     import CodeComplete from "./CodeComplete.svelte";
     import { each } from "svelte/internal";
+    import { get } from "svelte/store";
 
     // Internal variables
     let textarea = null;
@@ -41,8 +42,13 @@
 
     // Currently opened tab in this editor
     let currentTabID = 0;
-    let currentTab;
-    $: currentTab = tabs[currentTabID];
+    // let cu;
+    // $: if (currentTabID > -1) {
+    //     tabs[currentTabID] = tabs[currentTabID];
+        
+    //     syntaxHighlight();
+    //     getCurrentLineCount();
+    // }
 
     // Check for incoming file open requests, and open them
     // if current editor is active. Don't act on
@@ -55,6 +61,11 @@
 
         initial = false;
     });
+
+    // Get name of file given path
+    function getFileNameFromPath(path) {
+        return path.split("/").at(-1);
+    }
 
     // Check if tab with given path is in list of tabs,
     // and if it is return its id
@@ -73,11 +84,16 @@
         return -1;
     }
 
+    function tabUpdated() {
+        syntaxHighlight();
+        updateCurrentLineCount();
+    }
+
     // Load tab given its id
     function loadTab(tabID) {
         currentTabID = tabID;
 
-        syntaxHighlight();
+        tabUpdated();
     }
 
     // Close tab given its id
@@ -86,13 +102,11 @@
             currentTabID--;
         }
 
-        console.log("Closing tab", tabID);
-
         tabs = tabs.filter((tab, i) => {
             return i != tabID;
         });
 
-        console.log(tabs);
+        tabs = tabs;
     }
 
     // Open a new tab in the current editor
@@ -127,7 +141,7 @@
             return;
         }
 
-        openNewTab(file);
+        openNewTab(getFileNameFromPath(file));
 
         if (file != "") {
             openInCurrentTab(file);
@@ -157,7 +171,7 @@
     // Syntax highlight the code and sync the scroll values
     // TODO: split syntax highlighting into chunks (e.g. lines or blocks) to prevent lag
     function syntaxHighlight() {
-        if (!currentTab) {
+        if (!tabs[currentTabID]) {
             return;
         }
 
@@ -195,9 +209,9 @@
     let lineNumbers = [];
 
     // Update the current line numbers with word wrapping
-    function getCurrentLineCount() {
+    function updateCurrentLineCount() {
         lineNumbers = [];
-        const lines = currentTab.content.split("\n");
+        const lines = tabs[currentTabID].content.split("\n");
         let currentNum = 1;
         let currentLine = 0;
 
@@ -213,23 +227,16 @@
 
             currentNum++;
         }
-
-        console.log(lineNumbers);
     }
 
     // Sync the scroll values when the textarea is scrolled
     function textareaChange(e) {
         scrollSync();
-
-        syntaxHighlight();
-
+        tabUpdated();
         autoComplete(e);
 
-        // Update line numbers
-        getCurrentLineCount();
-
         // Tab is no longer saved
-        currentTab.saved = false;
+        tabs[currentTabID].saved = false;
     }
 
     /* File functionality */
@@ -251,18 +258,19 @@
             }).then((res) => {
                 if (res) {
                     tabs[currentTabID].path = res;
-                    currentTab.name = res.split("/").pop();
-                    currentTab.language = typeFromPath(res);
+                    tabs[currentTabID].name = res.split("/").pop();
+                    tabs[currentTabID].language = typeFromPath(res);
                     invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
 
-                    currentTab.saved = true;
+                    tabs[currentTabID].saved = true;
                 }
             });
         } else {
             // if path is set, save file to that path
+            console.log(tabs[currentTabID].path);
             invoke("save_file", { path: tabs[currentTabID].path, contents: tabs[currentTabID].content });
 
-            currentTab.saved = true;
+            tabs[currentTabID].saved = true;
         }
     }
 
@@ -271,13 +279,12 @@
         invoke("load_file", { path }).then((res) => {
             tabs[currentTabID].content = res;
             tabs[currentTabID].path = path;
-            currentTab.name = path.split("/").pop();
-            currentTab.language = typeFromPath(path);
-            currentTab.lineNumbers = res.split("\n").length;
-            currentTab.saved = true;
+            tabs[currentTabID].name = getFileNameFromPath(path);
+            tabs[currentTabID].language = typeFromPath(path);
+            tabs[currentTabID].lineNumbers = res.split("\n").length;
+            tabs[currentTabID].saved = true;
 
-            syntaxHighlight();
-            getCurrentLineCount();
+            tabUpdated();
         });
     }
 
@@ -288,9 +295,9 @@
 
         // The element is a syntax highlighted span
         if (element.tagName == "SPAN") {
-            editorTools[currentTab.language](element);
+            editorTools.generalHover(element, tabs[currentTabID].language);
         } else {
-            editorTools[currentTab.language](null);
+            editorTools.generalHover(null, tabs[currentTabID].language);
         }
     }
 
@@ -302,7 +309,7 @@
             return;
         }
         
-        editorTools[currentTab.language + "Typing"](textarea, event);
+        editorTools.typing(textarea, event, tabs[currentTabID].language);
     }
 
     // Handle textarea key up presses
@@ -369,7 +376,7 @@
 
         autoCompleteX = caretPosition.left;
         autoCompleteY = caretPosition.top + caretPosition.height;
-        autoCompleteEntries = editorTools[currentTab.language + "AutoComplete"](event);
+        autoCompleteEntries = editorTools.autoComplete(event, tabs[currentTabID].language);
 
         // Only show auto complete if entries exist for it
         if (autoCompleteEntries.length == 0) {
@@ -390,12 +397,27 @@
 
     /*// Handle textarea selection changes
     function selectionChange(e) {
-        editorTools[currentTab.language + "Selection"](textarea, textarea.value, textarea.selectionStart, textarea.selectionEnd);
+        editorTools[tabs[currentTabID].language + "Selection"](textarea, textarea.value, textarea.selectionStart, textarea.selectionEnd);
     }*/
 
     // Handle textarea caret movement
     function caretMove(e) {
-        editorTools[currentTab.language + "Caret"](textarea, textarea.value, textarea.selectionEnd);
+        editorTools.generalCaret(textarea, textarea.value, textarea.selectionEnd, tabs[currentTabID].language);
+
+        // Trigger toolbar toggle
+        toolbarToggle(e);
+    }
+
+    /* Toolbar functions */
+    let showToolbar = false;
+    let toolbarItems = [];
+    let toolbarPosition = { x: 0, y: 0 };
+
+    // Show/hide toolbar based on context
+    function toolbarToggle(e) {
+        [showToolbar, toolbarItems, toolbarPosition] = editorTools.generalToolbar(tabs[currentTabID].language, textarea, textarea.value, textarea.selectionEnd);
+
+        console.log(toolbarPosition, showToolbar);
     }
 </script>
 
@@ -408,6 +430,11 @@
 <main>
     <div class="tabs">
         { #if currentTabID > -1 }
+            <div class="toolbar">
+                {#each toolbarItems as item, i}
+                    <span class="toolbarItem" on:click={ () => { toolbarClick(i) } }>{ item }</span>
+                {/each}
+            </div>
             <div class="tab">
                 <pre bind:this={ preElement }><code>{ @html tabs[currentTabID].syntaxHighlighted }</code></pre>
                 <textarea spellcheck="false" bind:value={ tabs[currentTabID].content }
@@ -430,9 +457,9 @@
         { /if }
     </div>
     <div class="details">
-        {#if currentTab}
+        {#if tabs[currentTabID]}
         <span class="tabLanguage">
-            { currentTab.language }
+            { tabs[currentTabID].language }
         </span>
         {/if}
         <div class="tabsNav">
@@ -450,6 +477,12 @@
 <style>
     @import "/fonts/SpaceMono.css";
     @import "/fonts/Montserrat.css";
+
+    :root {
+        --toolbar-space: 3em;
+        --linenums-width: 50px;
+        --linenums-space: 65px;
+    }
 
     main {
         height: 100%;
@@ -565,9 +598,11 @@
         
         margin: 0;
         padding: 10px 15px;
-        padding-left: 65px;
+        padding-left: var(--linenums-space);
+        padding-top: 0;
+        margin-top: var(--toolbar-space);
         border: 0;
-        height: calc(100%);
+        height: calc(100% - var(--toolbar-space));
         box-sizing: border-box;
 
         position: absolute;
@@ -605,6 +640,7 @@
 
         width: 50px;
         padding: 10px 0;
+        padding-top: var(--toolbar-space);
         z-index: 3;
 
         cursor: default;
@@ -657,6 +693,19 @@
     .autocomplete {
         position: absolute;
         z-index: 2;
+    }
+
+    /* Inline toolbar */
+    .toolbar {
+        position: absolute;
+        z-index: 2;
+        top: 0;
+        left: var(--linenums-width);
+        box-sizing: border-box;
+
+        padding: 0.5em 0.75em;
+        background: #f4f4f4;
+        border-bottom: 1px solid #ccc;
     }
 </style>
 
