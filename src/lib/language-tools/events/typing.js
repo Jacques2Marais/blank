@@ -18,7 +18,7 @@ export default class TypingEvent extends EditorEvent {
      * Is the key that was pressed an alphabet character?
      * @returns {boolean}
      */
-    get isAlphabet() {
+    get isAlphabetKey() {
         return this.key.match(/[a-z]/i) !== null;
     }
 }

@@ -1,3 +1,4 @@
+import { s } from '@tauri-apps/api/app-373d24a3.js';
 import Context from '../context/context.js'
 import EditorEvent from '../events/event.js';
 
@@ -40,7 +41,7 @@ export default {
                 }
 
                 // Auto-close an opening tag
-                this.insertAtCursor(typingEvent, `</${this.HTMLContext.currentTagName}>`);
+                typingEvent.insertAtCaret(`</${this.HTMLContext.currentTagName}>`);
 
                 // Reset & set context
                 this.context.setContext({
@@ -63,40 +64,47 @@ export default {
                 this.context.setContext("tag-name", this.getTagName(typingEvent))
             }
         } else if (typingEvent.key == "Enter") {
-            if (this.HTMLContext.inEmptyElementBody) {
-                this.autoIndentNewLine(textarea, event);
+            if (this.context.in("empty-element-body")) {
+                /* TODO: Auto indent empty element body */
+                //this.autoIndentNewLine(textarea, event);
 
                 // Set context
-                this.HTMLContext.inEmptyElementBody = false;
+                //this.HTMLContext.inEmptyElementBody = false;
             } else {
-                this.autoIndent(textarea, event);
+                // Auto indent
+                if (this.context.in("element-body") && this.context.getContext("last-char") == ">") {
+                    // ... with extra tabs if next to closing bracket of opening tag
+                    typingEvent.autoIndent({extraTabs: 1});
+                } else {
+                    typingEvent.autoIndent();
+                }
             }
 
             // Set context
             this.generalContext.isAtLineStart = true;
         } else if (typingEvent.key == '"' || typingEvent.key == "'") {
             // Auto close quote pairs
-            this.insertAtCursor(textarea, cursorPosition, event.key);
+            typingEvent.insertAtCaret(typingEvent.key);
         } else if (typingEvent.key == "Backspace") {
-            // Remove tab if at line start
-            if (this.generalContext.isAtLineStart) {
+            // TODO: Remove tab if at line start
+            /*if (this.generalContext.isAtLineStart) {
                 this.generalContext.tabDepth--;
-            }
-        } else if (typingEvent.isAlphabet) {
+            }*/
+        } else if (typingEvent.isAlphabetKey) {
             // This is an opening tag
             if (this.context.getContext("last-char") == "<") {
                 this.setContext("in-opening-tag", true);
             }
         }
 
-        if (event.key != "Enter" && event.key != "Tab") {
-            this.generalContext.isAtLineStart = false;
+        if (typingEvent.key != "Enter" && typingEvent.key != "Tab") {
+            this.context.setContext("is-at-line-start", false);
         }
 
-        // Ensure it is a self-closing tag and not a random "/"
-        if (this.HTMLContext.inSelfClosingTag && event.key != ">" && event.key != "/") {
+        // DEPRECATED: Ensure it is a self-closing tag and not a random "/"
+        /**if (this.HTMLContext.inSelfClosingTag && typingEvent.key != ">" && typingEvent.key != "/") {
             this.HTMLContext.inSelfClosingTag = false;
-        }
+        }*/
 
         // Set context of last character
         this.context.setContext("last-char", typingEvent.key);
@@ -111,9 +119,9 @@ export default {
     getTagName(event) {
         // Get the text between the last "<" and the cursor position if function was caused by typing event
         if (event instanceof TypingEvent) {
-            const openBracketIndex = event.textValue.lastIndexOf("<", event.cursorPosition - 1);
+            const openBracketIndex = event.textValue.lastIndexOf("<", event.caretPosition - 1);
 
-            return event.textValue.substring(openBracketIndex + 1, event.cursorPosition);
+            return event.textValue.substring(openBracketIndex + 1, event.caretPosition);
         }
 
         return null;
