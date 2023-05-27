@@ -1,5 +1,5 @@
 <script>
-    import Editor from './lib/edit-view/Editor.svelte';
+    import Editor from './lib/edit-view/editor/Editor.svelte';
     import Renderer from './lib/edit-view/Renderer.svelte';
     import Sidebar from './lib/sidebar/Sidebar.svelte';
 </script>
@@ -61,6 +61,8 @@
     .row-divider {
         display: flex;
         flex-direction: row;
+
+        max-height: 50vh;
     }
 
     .column-divider > div, .row-divider > div {

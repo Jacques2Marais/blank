@@ -5,10 +5,6 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-use syntect::highlighting::ThemeSet;
-use syntect::html::{ClassedHTMLGenerator, ClassStyle, css_for_theme_with_class_style};
-use syntect::parsing::SyntaxSet;
-use syntect::util::LinesWithEndings;
 use tauri::regex::Regex;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -140,46 +136,13 @@ fn inline_html(file: &str) -> String {
 }
 
 
-// Setup prefixed class names for syntax highlighting
-pub const PREFIXED_HIGHLIGHT: ClassStyle = ClassStyle::SpacedPrefixed { prefix: "blank-editor-" };
 
-// Syntax highlight the given code
-#[tauri::command]
-fn syntax_highlight(code: &str, language: &str) -> String {
-    // if code length = 0, return empty string
-    if code.len() == 0 {
-        return String::from("");
-    }
 
-    print!("Language: {}", language);
-
-    let syntax_set = SyntaxSet::load_defaults_newlines();
-    let syntax = syntax_set.find_syntax_by_name(language).unwrap();
-
-    let mut html_generator = ClassedHTMLGenerator::new_with_class_style(syntax, &syntax_set, PREFIXED_HIGHLIGHT);
-    for line in LinesWithEndings::from(code) {
-        html_generator.parse_html_for_line_which_includes_newline(line).unwrap();
-    }
-
-    let mut last_newline = "";
-    if code.ends_with('\n') {
-        last_newline = "<br/>&nbsp;";
-    }
-    
-    html_generator.finalize().replace("\n", "<br/>") + last_newline
-}
-
-#[tauri::command]
-fn load_syntax_highlight_theme_css(theme: &str) -> String {
-    let ts = ThemeSet::load_defaults();
-    let theme = &ts.themes[theme];
-    
-    css_for_theme_with_class_style(theme, PREFIXED_HIGHLIGHT).unwrap()
-}
+mod syntax_highlighting;
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![count_words, get_files, syntax_highlight, load_syntax_highlight_theme_css, save_file, load_file, inline_html])
+        .invoke_handler(tauri::generate_handler![count_words, get_files, syntax_highlighting::get_syntax_highlighted_html, syntax_highlighting::get_syntax_highlighted_theme_css, save_file, load_file, inline_html])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
