@@ -23,6 +23,14 @@ export default class File {
     }
 
     /**
+     * Get the path of the file
+     * @returns {string} The path of the file
+     */
+    get path() {
+        return this.#path;
+    }
+
+    /**
      * Get the name of the file
      * @returns {string} The name of the file
      * @readonly

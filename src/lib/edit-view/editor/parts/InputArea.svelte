@@ -77,7 +77,7 @@
                 const numWraps = Math.floor(lines[line].length / 76);
                 for (let j = 0; j < numWraps; j++) {
                     lineNumbersArray[currentIndex] = "&nbsp;";
-                    currentIndex++
+                    currentIndex++;
                 }
             }
 
@@ -129,7 +129,7 @@
      * Sync the scroll of the textarea and the pre
      */
     function syncScroll() {
-        if (!textarea || !pre) {
+        if (!textarea || !pre || !lineNumbersDiv) {
             return;
         }
 
@@ -147,6 +147,10 @@
     }).then((response) => {
         syntaxHighlightingThemeCSS = response;
     });
+
+    $: if (value != "") {
+        valueChanged();
+    }
 </script>
 
 <!-- Include the CSS of the current syntax highlighting theme -->
@@ -159,7 +163,7 @@
     <div class="blank-editor-input-area">
         <pre bind:this={ pre }><code>{ @html syntaxHighlightedValue }</code></pre>
 
-        <textarea spellcheck="false" bind:this={ textarea } bind:value={ value }
+        <textarea spellcheck="false" bind:this={ textarea } bind:value
             on:keydown={ keydown } on:mousemove={ mousemove } on:scroll={ scroll } on:input={ input }
             on:focus={ focus } on:mouseup={ mouseup } on:keyup={ keyup } on:paste={ paste }></textarea>
     </div>

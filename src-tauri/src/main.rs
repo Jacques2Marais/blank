@@ -38,23 +38,7 @@ fn get_files(directory: &str) -> Vec<String> {
     files
 }
 
-// Save a file to the given path, given its contents
-#[tauri::command]
-fn save_file(path: &str, contents: &str) -> bool {
-    let mut file = fs::File::create(path).unwrap();
-    file.write_all(contents.as_bytes()).unwrap();
-
-    true
-}
-
-// Load a file from given path, return its contents
-#[tauri::command]
-fn load_file(path: &str) -> String {
-    let contents = fs::read_to_string(path).unwrap();
-
-    // Return String
-    contents
-}
+mod files;
 
 /*// Serve static files from given path
 #[tauri::command]
@@ -142,7 +126,7 @@ mod syntax_highlighting;
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![count_words, get_files, syntax_highlighting::get_syntax_highlighted_html, syntax_highlighting::get_syntax_highlighted_theme_css, save_file, load_file, inline_html])
+        .invoke_handler(tauri::generate_handler![count_words, get_files, syntax_highlighting::get_syntax_highlighted_html, syntax_highlighting::get_syntax_highlighted_theme_css, files::save_file, files::get_file_contents, inline_html])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

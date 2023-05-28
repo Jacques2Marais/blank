@@ -17,6 +17,10 @@ export default class Tab {
         this.language = language;
         this.isSaved = isSaved;
         this.file = file;
+
+        if (this.file != null) {
+            this.load(this.file);
+        }
     }
 
     /**

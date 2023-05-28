@@ -1,6 +1,8 @@
 export default class Language {
     static extensions = {
         "html": "HTML",
+        "css": "CSS",
+        "js": "JavaScript",
     }
 
     /**

@@ -1,16 +1,38 @@
 <script>
     import InputArea from "./parts/InputArea.svelte";
     import Tabs from "./parts/Tabs.svelte";
+    import EmptyState from "../../utils/EmptyState.svelte";
+    import Tab from "./parts/utils/tab";
 
     export let id = 0;
+
+    let tab = null;
+    let value = "";
+    let language = null;
+
+    /**
+     * Load the tab's content into the editor
+     * @param {Tab} tab The tab to load
+     */
+    function loadTab(tab) {
+        if (tab == null) return;
+
+        value = tab.file.content;
+        language = tab.file.language;
+    }
+    $: loadTab(tab);
 </script>
 
 <div class="blank-editor">
     <div class="blank-editor-top">
-        <InputArea />
+        {#if tab == null}
+            <EmptyState/>
+        {:else}
+            <InputArea bind:value={ value } bind:language={ language } />
+        {/if}
     </div>
     <div class="blank-editor-bottom">
-        <Tabs />
+        <Tabs bind:tab />
     </div>
 </div>
 

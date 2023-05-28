@@ -1,5 +1,5 @@
 <script>
-    import EmptyState from "../utilities/EmptyState.svelte";
+    import EmptyState from "../utils/EmptyState.svelte";
 
     import { renderedURL } from "../stores/render";
     import { invoke } from "@tauri-apps/api/tauri";
