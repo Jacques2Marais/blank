@@ -3,6 +3,7 @@ export default class Language {
         "html": "HTML",
         "css": "CSS",
         "js": "JavaScript",
+        "svelte": "Svelte",
     }
 
     /**

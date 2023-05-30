@@ -1,7 +1,11 @@
 <script>
-    import { claim_comment } from "svelte/internal";
     import BackendComm from "../../../../lib/utils/backend-comm.js";
     import LineNumbers from "./LineNumbers.svelte";
+    import Prism from 'prismjs';
+    import 'prism-svelte';
+
+    import { createEventDispatcher } from "svelte/internal";
+    const dispatch = createEventDispatcher();
 
     // Elements
     let pre = null;
@@ -30,7 +34,7 @@
     }
 
     function focus() {
-
+        dispatch("focus");
     }
 
     function mouseup() {
@@ -102,13 +106,15 @@
             return;
         }
 
-        BackendComm.request("get_syntax_highlighted_html", {
+        /*BackendComm.request("get_syntax_highlighted_html", {
             value,
             language
         }).then((response) => {
             syntaxHighlightedValue = response;
             syncScroll();
-        });
+        });*/
+        const languageLowercase = language.toLowerCase();
+        syntaxHighlightedValue = Prism.highlight(value, Prism.languages[languageLowercase], languageLowercase);
     }
 
     /**
@@ -141,29 +147,32 @@
     }
 
     // Bindings
-    let syntaxHighlightingThemeCSS = "";
+    /*let syntaxHighlightingThemeCSS = "";
     $: BackendComm.request("get_syntax_highlighted_theme_css", {
         theme
     }).then((response) => {
         syntaxHighlightingThemeCSS = response;
-    });
+    });*/
 
     $: if (value != "") {
         valueChanged();
     }
 </script>
 
-<!-- Include the CSS of the current syntax highlighting theme -->
-{ @html "<" + "style>" + syntaxHighlightingThemeCSS + "</style>" }
+<!-- Include the CSS of the current syntax highlighting theme
+{ @html "<" + "style>" + syntaxHighlightingThemeCSS + "</style>" }-->
+<svelte:head>
+  <link href="../../../src/prism-themes/base16-ateliersulphurpool.light.css" rel="stylesheet" />
+</svelte:head>
 
 <div class="blank-editor-main">
     <div class="blank-editor-line-numbers-area">
         <LineNumbers bind:lineNumbersDiv={ lineNumbersDiv } bind:lineNumbersArray />
     </div>
     <div class="blank-editor-input-area">
-        <pre bind:this={ pre }><code>{ @html syntaxHighlightedValue }</code></pre>
+        <pre bind:this={ pre } class="blank-editor-code"><code class="blank-editor-code">{ @html syntaxHighlightedValue }</code></pre>
 
-        <textarea spellcheck="false" bind:this={ textarea } bind:value
+        <textarea class="blank-editor-code" spellcheck="false" bind:this={ textarea } bind:value
             on:keydown={ keydown } on:mousemove={ mousemove } on:scroll={ scroll } on:input={ input }
             on:focus={ focus } on:mouseup={ mouseup } on:keyup={ keyup } on:paste={ paste }></textarea>
     </div>

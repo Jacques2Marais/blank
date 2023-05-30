@@ -1,8 +1,9 @@
 <script>
     import File from "../../../utils/file.js";
     import Tab from "./utils/tab.js";
-    import { fileToOpen } from "../../../stores/edit.js";
+    import { activeEditorID, fileToOpen } from "../../../stores/edit.js";
 
+    export let editorID = 0;
     let tabIndex = 0;
     export let tabs = [];
     export let tab = null;
@@ -32,6 +33,20 @@
         tabIndex = index;
     }
 
+    /**
+     * Return the index of a tab if it exists or -1 otherwise
+     * @param tab
+     */
+    function tabExists(tab) {
+        for (let i = 0; i < tabs.length; i++) {
+            if (tabs[i].file.path == tab.file.path) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     // Subscribe to fileToOpen store
     let initial = true;
     fileToOpen.subscribe((path) => {
@@ -42,8 +57,11 @@
             openInNewTab(path);
         }*/
 
-        if (!initial) {
+        const tabIndex = tabExists(tab);
+        if (!initial && tabIndex == -1 && editorID == $activeEditorID) {
             addTab(tab);
+        } else if (tabIndex > -1) {
+            setTab(tabIndex);
         }
 
         initial = false;
@@ -56,7 +74,7 @@
     {/if}
 
     {#each tabs as currentTab, i}
-        <div class="blank-editor-tab" class:selected={ tabIndex == i } on:click={ () => { setTab(i); } }>
+        <div class="blank-editor-tab" class:blank-editor-tab-selected={ tabIndex == i } on:click={ () => { setTab(i); } }>
             <span class="blank-editor-tab-name">{ currentTab.name }</span>
             <span class="blank-editor-tab-close" on:click={ () => { removeTab(i); } }>&times;</span>
         </div>
@@ -89,5 +107,9 @@
 
         cursor: pointer;
         background-color: var(--color-lighter-grey);
+    }
+
+    .blank-editor-tab-selected {
+        background-color: var(--color-light-grey);
     }
 </style>

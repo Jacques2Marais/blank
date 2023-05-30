@@ -4,6 +4,7 @@
     import EmptyState from "../../utils/EmptyState.svelte";
     import Tab from "./parts/utils/tab";
 
+    import { setActiveEditorID } from "../../stores/edit";
     export let id = 0;
 
     let tab = null;
@@ -21,6 +22,13 @@
         language = tab.file.language;
     }
     $: loadTab(tab);
+
+    /** 
+     * Set the global active editor to the current one on focus on the InputArea
+    */
+    function focus() {
+        setActiveEditorID(id);
+    }
 </script>
 
 <div class="blank-editor">
@@ -28,11 +36,11 @@
         {#if tab == null}
             <EmptyState/>
         {:else}
-            <InputArea bind:value={ value } bind:language={ language } />
+            <InputArea theme="OceanLight" bind:value={ value } bind:language={ language } on:focus={ focus } />
         {/if}
     </div>
     <div class="blank-editor-bottom">
-        <Tabs bind:tab />
+        <Tabs bind:tab bind:editorID={ id }  />
     </div>
 </div>
 
