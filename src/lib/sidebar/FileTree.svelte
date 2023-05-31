@@ -4,7 +4,11 @@
     import DirectoryView from "./DirectoryView.svelte";
 
     // The path of the top directory
-    let directory = "";
+    let directory = "/home/jacques/apps/blanktest";
+
+    setTimeout(() => {
+        topDirectoryView.load();
+    });
 
     // The top DirectoryView component
     let topDirectoryView = null;

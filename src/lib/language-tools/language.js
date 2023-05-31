@@ -16,4 +16,15 @@ export default class Language {
 
         return this.extensions[extension] || "Text";
     }
+
+    static supportedLanguages = [
+        "HTML",
+    ]
+
+    /**
+     * Check whether a language has a set of language tools
+     */
+    static isSupported(language) {
+        return this.supportedLanguages.includes(language);
+    }
 }

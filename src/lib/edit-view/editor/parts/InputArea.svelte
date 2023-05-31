@@ -4,6 +4,10 @@
     import Prism from 'prismjs';
     import 'prism-svelte';
 
+    // Language tools
+    import Language from "../../../language-tools/language.js";
+    import TypingEvent from "../../../language-tools/events/typing.js";
+
     import { createEventDispatcher } from "svelte/internal";
     const dispatch = createEventDispatcher();
 
@@ -20,9 +24,17 @@
     // Other variables
     let syntaxHighlightedValue = "";
     let lineNumbersArray = ["1"];
+    let languageTools;
+    
 
     // Events
-    function keydown() {
+    function keydown(event) {
+        const typingEvent = new TypingEvent({
+            textarea,
+            event
+        });
+
+        languageTools.typing(typingEvent);
     }
 
     function keyup() {
@@ -147,6 +159,12 @@
     }
 
     // Bindings
+    $: if (Language.isSupported(language)) {
+        import(`../../../language-tools/${language}/${language}.js`).then((module) => {
+            languageTools = module.default;
+        });
+    }
+
     /*let syntaxHighlightingThemeCSS = "";
     $: BackendComm.request("get_syntax_highlighted_theme_css", {
         theme

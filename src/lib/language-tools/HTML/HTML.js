@@ -11,19 +11,19 @@ export default {
         "in-opening-tag": false,
 
         // Is the cursor inside a self-closing tag?
-        inSelfClosingTag: false,
+        'in-self-closing-tag': false,
 
         // Current tag name
         'tag-name': '',
 
         // Is inside an element's body?
-        inElementBody: false,
+        'in-element-body': false,
 
         // Is inside an empty element?
-        inEmptyElementBody : false,
+        'in-empty-element-body' : false,
 
         // Is inside of a pair of empty quotes? 
-        isInsideEmptyQuotes: ''
+        'in-empty-quotes': ''
     }),
 
     /** 
@@ -31,6 +31,15 @@ export default {
      * @param {TypingEvent} typingEvent The custom TypingEvent that contains information about what was typed and where
      */
     typing(typingEvent) {
+        // Detect shift+tab for unindenting
+        if (typingEvent.code == "Tab" && typingEvent.isMod("Shift")) {
+            // Unindent
+            typingEvent.utils.unindent();
+            typingEvent.preventDefault();
+
+            return;
+        }
+
         if (typingEvent.key == ">") {
             // Auto close an opening tag
             if (this.context.in("opening-tag") && this.context.getContext("last-char") != "/") {
@@ -40,7 +49,7 @@ export default {
                 }
 
                 // Auto-close an opening tag
-                typingEvent.insertAtCaret(`</${this.HTMLContext.currentTagName}>`);
+                typingEvent.utils.insertAtCaret(`</${this.context.getContext("tag-name")}>`);
 
                 // Reset & set context
                 this.context.setContext({
@@ -62,6 +71,16 @@ export default {
             if (this.context.in("opening-tag") && !this.context.isSet("tag-name")) {
                 this.context.setContext("tag-name", this.getTagName(typingEvent))
             }
+        } else if (typingEvent.key == "Tab") {
+            if (typingEvent.utils.selection.length > 0) {
+                // Indent selection
+                typingEvent.utils.indent();
+                typingEvent.preventDefault();
+            } else {
+                typingEvent.utils.insertAtCaret(`\t`, "end");
+                typingEvent.preventDefault();
+                typingEvent.utils.trigger("input");
+            }
         } else if (typingEvent.key == "Enter") {
             if (this.context.in("empty-element-body")) {
                 /* TODO: Auto indent empty element body */
@@ -73,17 +92,19 @@ export default {
                 // Auto indent
                 if (this.context.in("element-body") && this.context.getContext("last-char") == ">") {
                     // ... with extra tabs if next to closing bracket of opening tag
-                    typingEvent.autoIndent({extraTabs: 1});
+                    typingEvent.utils.autoIndent({extraTabs: 1, breakLine: true});
+                    typingEvent.preventDefault();
                 } else {
-                    typingEvent.autoIndent();
+                    typingEvent.utils.autoIndent({breakLine: true});
+                    typingEvent.preventDefault();
                 }
             }
 
             // Set context
-            this.generalContext.isAtLineStart = true;
+            //this.generalContext.isAtLineStart = true;
         } else if (typingEvent.key == '"' || typingEvent.key == "'") {
             // Auto close quote pairs
-            typingEvent.insertAtCaret(typingEvent.key);
+            typingEvent.utils.insertAtCaret(typingEvent.key);
         } else if (typingEvent.key == "Backspace") {
             // TODO: Remove tab if at line start
             /*if (this.generalContext.isAtLineStart) {
@@ -92,7 +113,7 @@ export default {
         } else if (typingEvent.isAlphabetKey) {
             // This is an opening tag
             if (this.context.getContext("last-char") == "<") {
-                this.setContext("in-opening-tag", true);
+                this.context.setContext("in-opening-tag", true);
             }
         }
 
@@ -118,9 +139,9 @@ export default {
     getTagName(event) {
         // Get the text between the last "<" and the cursor position if function was caused by typing event
         if (event instanceof TypingEvent) {
-            const openBracketIndex = event.textValue.lastIndexOf("<", event.caretPosition - 1);
+            const openBracketIndex = event.utils.value.lastIndexOf("<", event.utils.originalCaretPosition - 1);
 
-            return event.textValue.substring(openBracketIndex + 1, event.caretPosition);
+            return event.utils.value.substring(openBracketIndex + 1, event.utils.originalCaretPosition);
         }
 
         return null;
