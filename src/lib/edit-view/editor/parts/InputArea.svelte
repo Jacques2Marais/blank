@@ -8,6 +8,9 @@
     import Language from "../../../language-tools/language.js";
     import TypingEvent from "../../../language-tools/events/typing.js";
 
+    // Shortcut Keys
+    import EditorShortcuts from "./utils/shortcuts.js";
+
     import { createEventDispatcher } from "svelte/internal";
     const dispatch = createEventDispatcher();
 
@@ -20,19 +23,54 @@
     export let value = "";
     export let theme = "Solarized (light)";
     export let language = "Text";
+    export let editorID = 0;
 
     // Other variables
     let syntaxHighlightedValue = "";
     let lineNumbersArray = ["1"];
     let languageTools;
+
+    let shortcuts;
+    $: if (textarea) {
+        shortcuts = new EditorShortcuts(editorID, textarea);
+    }
+
+    // GlobalHistory
+    import GlobalHistory from "../../../utils/GlobalHistory.js";
+
+    $: if (textarea) {
+        GlobalHistory.addEditor(editorID, textarea);
+    }
+
+    export const tabLoaded = function() {
+        GlobalHistory.refreshEditor(editorID, textarea);
+    };
     
 
     // Events
     function keydown(event) {
+        // If shortcut key was pressed, return
+        if (shortcuts.shortcut(event)) {
+            event.preventDefault();
+            textarea.dispatchEvent(new Event("input"));
+
+            return;
+        }
+
         const typingEvent = new TypingEvent({
             textarea,
-            event
+            event,
+            editorID
         });
+
+        if (typingEvent.deletedCharacter) {
+            GlobalHistory.addHistory(editorID, {
+                type: "delete",
+                text: typingEvent.deletedCharacter,
+                start: typingEvent.deletedIndex,
+                end: typingEvent.deletedIndex
+            });
+        }
 
         languageTools.typing(typingEvent);
     }
@@ -41,8 +79,17 @@
 
     }
 
-    function input() {
+    function input(event) {
         valueChanged();
+
+        if (event.inputType == "insertText") {
+            GlobalHistory.addHistory(editorID, {
+                type: "insert",
+                text: event.data,
+                start: textarea.selectionEnd - event.data.length,
+                end: textarea.selectionEnd
+            });
+        }
     }
 
     function focus() {

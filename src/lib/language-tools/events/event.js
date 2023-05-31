@@ -13,6 +13,7 @@ export default class EditorEvent {
         this.properties = {
             textarea: null,
             event: null,
+            editorID: null,
             ...properties
         };
 
@@ -48,6 +49,14 @@ export default class EditorEvent {
         this.originalEvent.preventDefault();
 
         return this;
+    }
+
+    /**
+     * Get the editor's ID
+     * @returns {number} The editor's ID
+     */
+    get editorID() {
+        return this.properties.editorID;
     }
 
 }

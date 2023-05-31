@@ -1,5 +1,6 @@
 import Context from '../context/context.js'
 import EditorEvent from '../events/event.js';
+import GlobalHistory from '../../utils/GlobalHistory.js';
 
 // Events
 import TypingEvent from '../events/typing.js'
@@ -48,8 +49,17 @@ export default {
                     this.context.setContext("tag-name", this.getTagName(typingEvent));
                 }
 
+                const closingTag = `</${this.context.getContext("tag-name")}>`;
+
                 // Auto-close an opening tag
-                typingEvent.utils.insertAtCaret(`</${this.context.getContext("tag-name")}>`);
+                typingEvent.utils.insertAtCaret(closingTag);
+
+                GlobalHistory.addHistory(typingEvent.editorID, {
+                    type: "insert",
+                    text: closingTag,
+                    start: typingEvent.utils.caretPosition - closingTag.length,
+                    end: typingEvent.utils.caretPosition
+                });
 
                 // Reset & set context
                 this.context.setContext({

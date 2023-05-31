@@ -10,6 +10,7 @@
     let tab = null;
     let value = "";
     let language = null;
+    let tabLoaded = null;
 
     /**
      * Load the tab's content into the editor
@@ -20,6 +21,8 @@
 
         value = tab.file.content;
         language = tab.file.language;
+
+        setTimeout(tabLoaded);
     }
     $: loadTab(tab);
 
@@ -36,7 +39,7 @@
         {#if tab == null}
             <EmptyState/>
         {:else}
-            <InputArea theme="OceanLight" bind:value={ value } bind:language={ language } on:focus={ focus } />
+            <InputArea theme="OceanLight" bind:value={ value } bind:language={ language } on:focus={ focus } bind:editorID={ id } bind:tabLoaded={ tabLoaded } />
         {/if}
     </div>
     <div class="blank-editor-bottom">

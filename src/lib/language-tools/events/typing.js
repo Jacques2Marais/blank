@@ -57,4 +57,27 @@ export default class TypingEvent extends EditorEvent {
 
         return false;
     }
+
+    get deletedIndex() {
+        if (this.key == "Delete") {
+            return this.utils.caretPosition;
+        } else if (this.key == "Backspace") {
+            return this.utils.caretPosition - 1;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Get a backspaced/deleted character or null if none was backspaced/deleted
+     * @returns {string|null} The backspaced/deleted character
+     * @readonly
+     */
+    get deletedCharacter() {
+        if (this.deletedIndex > -1) {
+            return this.utils.charAt(this.deletedIndex);
+        }
+
+        return null;
+    }
 }

@@ -128,6 +128,21 @@ export default class TextUtils {
     }
 
     /**
+     * Remove characters between two positions
+     * @param {number} start The start position
+     * @param {number} end The end position
+     * @param {string} [characters] The characters to remove; null if any characters
+     * @returns {TextUtils} Self
+     */
+    removeBetween(start, end, characters = null) {
+        for (let i = start; i < end; i++) {
+            this.removeAt(i, characters[i]);
+        }
+
+        return this;
+    }
+
+    /**
      * Insert a string at a specific position
      * @param {number} position Where to insert the string
      * @param {string} stringToInsert The string to insert
