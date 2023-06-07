@@ -31,6 +31,15 @@ export default class Context {
     }
 
     /**
+     * Append to a certain context property
+     * @param {string} context The context property to append to
+     * @param {any} value The value to append to the context property
+     */
+    appendToContext(context, value) {
+        this.setContext(context, this.getContext(context) + value);
+    }
+
+    /**
      * Get a certain context property
      * @param {string} context The context property to get
      * @returns {any} The value of the context property
@@ -53,9 +62,9 @@ export default class Context {
     /**
      * Short-hand to get context property starting with "in-"
      * @param {string} context The context property to check that starts with "in-"
-     * @returns {boolean} Whether or not the context property is set
+     * @returns {any} Whether or not the context property is set, and what the value is
      */
     in(context) {
-        return this.getContext(`in-${context}`) === true
+        return this.getContext(`in-${context}`)
     }
 }

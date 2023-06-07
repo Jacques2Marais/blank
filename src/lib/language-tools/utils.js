@@ -390,4 +390,24 @@ export default class TextUtils {
 
         return lines;
     }
+
+    /**
+     * Get all matching text before the caret until regex breaks
+     * @param {RegExp} regex The regex to match
+     * @returns {string} The matching text
+     */
+    getMatchingBeforeCaret(regex) {
+        let matching = "";
+
+        for (let i = this.caretPosition - 1; i >= 0; i--) {
+            if (regex.test(this.value[i])) {
+                matching = this.value[i] + matching;
+            } else {
+                break;
+            }
+        }
+        
+        return matching;
+    }
+
 }

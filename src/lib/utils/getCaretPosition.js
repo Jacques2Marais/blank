@@ -114,11 +114,12 @@ export function getCaretCoordinates(element, position, options) {
   span.textContent = element.value.substring(position) || '.';  // || because a completely empty faux span doesn't render at all
   div.appendChild(span);
 
-  var coordinates = {
-    top: span.offsetTop + parseInt(computed['borderTopWidth']),
-    left: span.offsetLeft + parseInt(computed['borderLeftWidth']),
-    height: parseInt(computed['lineHeight'])
-  };
+  /* left, top, height */
+  var coordinates = [
+    span.offsetLeft + parseInt(computed['borderLeftWidth']),
+    span.offsetTop + parseInt(computed['borderTopWidth']),
+    parseInt(computed['lineHeight'])
+  ];
 
   if (debug) {
     span.style.backgroundColor = '#aaa';

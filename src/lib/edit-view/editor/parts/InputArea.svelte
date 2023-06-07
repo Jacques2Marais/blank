@@ -1,5 +1,4 @@
 <script>
-    import BackendComm from "../../../../lib/utils/backend-comm.js";
     import LineNumbers from "./LineNumbers.svelte";
     import Prism from 'prismjs';
     import 'prism-svelte';
@@ -7,6 +6,11 @@
     // Language tools
     import Language from "../../../language-tools/language.js";
     import TypingEvent from "../../../language-tools/events/typing.js";
+    import EditorToolbar from "./utils/toolbar";
+
+    // Autocomplete
+    import CodeComplete from "./CodeComplete.svelte";
+    import CodeCompletionController from "./utils/codecomplete";
 
     // Shortcut Keys
     import EditorShortcuts from "./utils/shortcuts.js";
@@ -18,6 +22,7 @@
     let pre = null;
     let textarea = null;
     let lineNumbersDiv = null;
+    let codeCompleteComponent;
 
     // Props
     export let value = "";
@@ -29,6 +34,10 @@
     let syntaxHighlightedValue = "";
     let lineNumbersArray = ["1"];
     let languageTools;
+    let toolbar = null;
+
+    let codeComplete;
+    let codeCompleteOptions = { show: false, left: 0, top: 0, entries: [], value: "" };
 
     let shortcuts;
     $: if (textarea) {
@@ -37,6 +46,7 @@
 
     // GlobalHistory
     import GlobalHistory from "../../../utils/GlobalHistory.js";
+    import Toolbar from "./Toolbar.svelte";
 
     $: if (textarea) {
         GlobalHistory.addEditor(editorID, textarea);
@@ -63,6 +73,34 @@
             editorID
         });
 
+        if (event.key == "Enter" && codeCompleteOptions.show) {
+            event.preventDefault();
+
+            const lastWord = languageTools.context.getContext("last-word");
+            const completion = codeCompleteOptions.value.substring(lastWord.length);
+
+            typingEvent.utils.insertAtCaret(completion, "end");
+            typingEvent.utils.trigger("input");
+            codeCompleteOptions.show = false;
+
+            return;
+        } else if (event.key == "ArrowDown" && codeCompleteOptions.show) {
+            event.preventDefault();
+            codeCompleteComponent.nextEntry();
+
+            return;
+        } else if (event.key == "ArrowUp" && codeCompleteOptions.show) {
+            event.preventDefault();
+            codeCompleteComponent.previousEntry();
+
+            return;
+        } else if (event.key == "Escape" && codeCompleteOptions.show) {
+            event.preventDefault();
+            codeCompleteOptions.show = false;
+
+            return;
+        }
+
         if (typingEvent.deletedCharacter) {
             GlobalHistory.addHistory(editorID, {
                 type: "delete",
@@ -73,6 +111,7 @@
         }
 
         languageTools.typing(typingEvent);
+        codeCompletion(typingEvent);
     }
 
     function keyup() {
@@ -112,6 +151,10 @@
 
     }
 
+    function mousedown() {
+        codeCompleteOptions.show = false;
+    }
+
     // Functions
     /**
      * Called when the value of the textarea changes
@@ -119,6 +162,21 @@
     function valueChanged() {
         setLineNumbersArray();
         syntaxHighlight();
+    }
+
+    /** Execute code completion */
+    $: if (textarea) {
+        codeComplete = new CodeCompletionController(textarea);
+    }
+
+    function codeCompletion(typingEvent) {
+        if (!codeComplete) {
+            return;
+        }
+
+        codeComplete.moveToCaret();
+        codeComplete.entries = languageTools.codeComplete(typingEvent);
+        codeCompleteOptions = codeComplete.options;
     }
 
     /** 
@@ -165,13 +223,6 @@
             return;
         }
 
-        /*BackendComm.request("get_syntax_highlighted_html", {
-            value,
-            language
-        }).then((response) => {
-            syntaxHighlightedValue = response;
-            syncScroll();
-        });*/
         const languageLowercase = language.toLowerCase();
         syntaxHighlightedValue = Prism.highlight(value, Prism.languages[languageLowercase], languageLowercase);
     }
@@ -206,10 +257,23 @@
     }
 
     // Bindings
+    function updateToolbar() {
+        if (languageTools) {
+            toolbar = languageTools.toolbar();
+        } else {
+            toolbar = null;
+        }
+    }
+
     $: if (Language.isSupported(language)) {
         import(`../../../language-tools/${language}/${language}.js`).then((module) => {
             languageTools = module.default;
+            updateToolbar();
         });
+    } else {
+        console.log(`Language ${language} is not supported`);
+        languageTools = null;
+        updateToolbar();
     }
 
     /*let syntaxHighlightingThemeCSS = "";
@@ -230,25 +294,54 @@
   <link href="../../../src/prism-themes/base16-ateliersulphurpool.light.css" rel="stylesheet" />
 </svelte:head>
 
-<div class="blank-editor-main">
-    <div class="blank-editor-line-numbers-area">
-        <LineNumbers bind:lineNumbersDiv={ lineNumbersDiv } bind:lineNumbersArray />
-    </div>
-    <div class="blank-editor-input-area">
-        <pre bind:this={ pre } class="blank-editor-code"><code class="blank-editor-code">{ @html syntaxHighlightedValue }</code></pre>
+<main>
+    <!--{#if toolbar}
+        <div class="blank-editor-toolbar">
+            <Toolbar bind:toolbar={ toolbar }/>
+        </div>
+    {/if}-->
+    <div class="blank-editor-main">
+        <div class="blank-editor-line-numbers-area">
+            <LineNumbers bind:lineNumbersDiv={ lineNumbersDiv } bind:lineNumbersArray />
+        </div>
+        <div class="blank-editor-input-area">
+            <pre bind:this={ pre } class="blank-editor-code"><code class="blank-editor-code">{ @html syntaxHighlightedValue }</code></pre>
 
-        <textarea class="blank-editor-code" spellcheck="false" bind:this={ textarea } bind:value
-            on:keydown={ keydown } on:mousemove={ mousemove } on:scroll={ scroll } on:input={ input }
-            on:focus={ focus } on:mouseup={ mouseup } on:keyup={ keyup } on:paste={ paste }></textarea>
+            <textarea class="blank-editor-code" spellcheck="false" bind:this={ textarea } bind:value
+                on:keydown={ keydown } on:mousemove={ mousemove } on:scroll={ scroll } on:input={ input }
+                on:focus={ focus } on:mouseup={ mouseup } on:keyup={ keyup } on:paste={ paste } 
+                on:mousedown={ mousedown }></textarea>
+        </div>
     </div>
-</div>
+    {#if codeCompleteOptions.show}
+        <div class="blank-editor-autocomplete" style="left: {codeCompleteOptions.left}; top: {codeCompleteOptions.top}">
+            <CodeComplete bind:this={ codeCompleteComponent } 
+                bind:entries={ codeCompleteOptions.entries } bind:value={ codeCompleteOptions.value } />
+        </div>
+    {/if}
+</main>
 
 <style>
     @import "./utils/variables.css";
 
-    .blank-editor-main {
+    main {
         width: 100%;
         height: 100%;
+
+        display: flex;
+        flex-direction: column;
+
+        position: relative;
+    }
+
+    .blank-editor-toolbar {
+        flex: 0 0 auto;
+        height: 2.5em;
+    }
+
+    .blank-editor-main {
+        flex: 1 1 auto;
+        max-height: calc(100% - 2.5em);
 
         display: flex;
         flex-direction: row;
@@ -267,6 +360,13 @@
         height: 100%;
 
         position: relative;
+    }
+
+    .blank-editor-autocomplete {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 2;
     }
 
     textarea, pre {

@@ -80,4 +80,8 @@ export default class TypingEvent extends EditorEvent {
 
         return null;
     }
+
+    /** Get a string before the cursor
+     * 
+     */
 }

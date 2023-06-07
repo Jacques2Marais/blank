@@ -1,9 +1,14 @@
 import Context from '../context/context.js'
 import EditorEvent from '../events/event.js';
 import GlobalHistory from '../../utils/GlobalHistory.js';
+import CommonUtils from '../../utils/CommonUtils.js';
 
 // Events
 import TypingEvent from '../events/typing.js'
+import EditorToolbar from '../../edit-view/editor/parts/utils/toolbar.js';
+
+// Autocomplete
+import { HTMLCompletions } from './autoCompleteData.js';
 
 export default {
     // The current context of the user in the HTML file
@@ -14,8 +19,8 @@ export default {
         // Is the cursor inside a self-closing tag?
         'in-self-closing-tag': false,
 
-        // Current tag name
-        'tag-name': '',
+        // In tag name?
+        'in-tag-name': '',
 
         // Is inside an element's body?
         'in-element-body': false,
@@ -24,7 +29,16 @@ export default {
         'in-empty-element-body' : false,
 
         // Is inside of a pair of empty quotes? 
-        'in-empty-quotes': ''
+        'in-empty-quotes': '',
+
+        // Is inside of a pair of quotes (single or double)?
+        'in-quotes': '', // ' or "
+
+        // The last word for autocomplete
+        'last-word': '',
+
+        // The last typed character
+        'last-char': ''
     }),
 
     /** 
@@ -45,11 +59,11 @@ export default {
             // Auto close an opening tag
             if (this.context.in("opening-tag") && this.context.getContext("last-char") != "/") {
                 // Set tag name context if not already set
-                if (!this.context.isSet("tag-name")) {
-                    this.context.setContext("tag-name", this.getTagName(typingEvent));
+                if (typeof this.context.in("tag-name") != "string" || this.context.in("tag-name").length == 0) {
+                    this.context.setContext("in-tag-name", this.getTagName(typingEvent));
                 }
 
-                const closingTag = `</${this.context.getContext("tag-name")}>`;
+                const closingTag = `</${this.context.in("tag-name")}>`;
 
                 // Auto-close an opening tag
                 typingEvent.utils.insertAtCaret(closingTag);
@@ -73,13 +87,18 @@ export default {
             // Set context
             this.context.setContext({
                 "in-element-body": false,
-                "tag-name": "",
-                "in-empty-element-body": false
+                "in-tag-name": true,
+                "in-empty-element-body": false,
+                "in-opening-tag": true
             });
         } else if (typingEvent.key == " ") {
             // Set tag name if not set
-            if (this.context.in("opening-tag") && !this.context.isSet("tag-name")) {
-                this.context.setContext("tag-name", this.getTagName(typingEvent))
+            if (this.context.in("opening-tag") 
+                && (typeof this.context.in("tag-name") != "string" || this.context.in("tag-name").length == 0)) {
+                this.context.setContext("in-tag-name", this.getTagName(typingEvent));
+            } else if (this.context.in("attribute-value") && !this.context.in("quotes")) {
+                // Set context
+                this.context.setContext("in-attribute-value", false);
             }
         } else if (typingEvent.key == "Tab") {
             if (typingEvent.utils.selection.length > 0) {
@@ -115,6 +134,14 @@ export default {
         } else if (typingEvent.key == '"' || typingEvent.key == "'") {
             // Auto close quote pairs
             typingEvent.utils.insertAtCaret(typingEvent.key);
+
+            if (this.context.in("quotes") == typingEvent.key) {
+                // Reset context
+                this.context.setContext({
+                    "in-quotes": '',
+                    "in-empty-quotes": false
+                });
+            }
         } else if (typingEvent.key == "Backspace") {
             // TODO: Remove tab if at line start
             /*if (this.generalContext.isAtLineStart) {
@@ -124,6 +151,15 @@ export default {
             // This is an opening tag
             if (this.context.getContext("last-char") == "<") {
                 this.context.setContext("in-opening-tag", true);
+            } else if (this.context.in("opening-tag") && !this.context.in("quotes")) {
+                this.context.setContext("in-attribute-name", typingEvent.key);
+            }
+        } else if (typingEvent.key == "=") {
+            if (this.context.in("opening-tag") && !this.context.in("quotes")) {
+                this.context.setContext({
+                    "in-attribute-value": true,
+                    "in-attribute-name": false
+                });
             }
         }
 
@@ -139,6 +175,63 @@ export default {
         // Set context of last character
         this.context.setContext("last-char", typingEvent.key);
     },
+
+    /**
+     * Create a toolbar for the HTML language
+     */
+    toolbar() {
+        if (this.context.in("opening-tag")) {
+            return new EditorToolbar([
+                EditorToolbar.button("add-class", "Add Class", function(button) {
+                    button.inputPopup("Class name", "The name of the class to add");
+                })
+            ]);
+        }
+
+        return new EditorToolbar([
+            EditorToolbar.button("add-tag", "Add Tag", function(button) {
+                button.inputPopup("Tag name", "The name of the tag to add");
+            })
+        ]);
+    },
+
+    /**
+     * Code completion
+     */
+    validRegex: /[a-zA-Z0-9\-_]/,
+
+    codeComplete(typingEvent) {
+        if (!this.validRegex.test(typingEvent.key) || typingEvent.key.length > 1) {
+            this.context.setContext("last-word", "");
+
+            return [];
+        } else {
+            if (this.context.getContext("last-word") == "") {
+                const lastWord = typingEvent.utils.getMatchingBeforeCaret(this.validRegex);
+
+                if (lastWord != "") {
+                    this.context.setContext("last-word", lastWord);
+                }
+            }
+
+            // Set context
+            this.context.appendToContext("last-word", typingEvent.key);
+        }
+
+        const lastWord = this.context.getContext("last-word");
+
+        if (this.context.in("tag-name")) {
+            return CommonUtils.objectKeysStartingWith(HTMLCompletions.tagsWithAttributes, lastWord);
+        } else if (this.context.in("attribute-name")) {
+            const tagName = this.context.in("tag-name");
+
+            return CommonUtils.arrayValuesStartingWith(HTMLCompletions.tagsWithAttributes[tagName], lastWord);
+        }
+            
+
+        return [];
+    },
+
 
     /* Some general functions */
 

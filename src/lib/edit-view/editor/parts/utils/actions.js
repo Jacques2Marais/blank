@@ -30,4 +30,11 @@ export default class EditorActions {
     redo() {
         GlobalHistory.redo(this.#editorID);
     }
+
+    /**
+     * Save the current file
+     */
+    save() {
+        // TODO
+    }
 }

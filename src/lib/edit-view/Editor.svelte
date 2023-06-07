@@ -4,10 +4,10 @@
     import { editorID, setEditorID, fileToOpen } from "../stores/edit";
     import { typeFromPath } from "./filetypes";
     import { editorTools } from "./editorTools";
-    import EmptyState from "../utilities/EmptyState.svelte";
+    import EmptyState from "../utils/EmptyState.svelte";
     
     // Source: https://github.com/component/textarea-caret-position
-    import { getCaretCoordinates } from "../utilities/getCaretPosition";
+    import { getCaretCoordinates } from "../utils/getCaretPosition";
     import CodeComplete from "./CodeComplete.svelte";
     import { each } from "svelte/internal";
     import { get } from "svelte/store";
